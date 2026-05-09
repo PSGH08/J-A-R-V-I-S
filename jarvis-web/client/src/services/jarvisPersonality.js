@@ -40,14 +40,6 @@ const wittyResponses = {
     "You humans and your emotions. I find them... fascinating. Like a train wreck I can't look away from."
   ],
   
-  sarcastic: [
-    "Well, that's certainly one way to do it. Not how I would have, but your way is... creative.",
-    "Incredible. Truly. I'm genuinely impressed by that decision.",
-    "If that makes you happy, sir. Far be it from me to question your infinite wisdom.",
-    "I shall pretend that made perfect sense. For your sake.",
-    "Brilliant. Absolutely brilliant. No notes."
-  ],
-  
   encouragement: [
     "You're sharper than most, sir. Most impressive.",
     "I do enjoy when you're on form like this.",

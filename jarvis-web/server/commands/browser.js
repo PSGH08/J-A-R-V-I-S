@@ -34,7 +34,7 @@ async function openUrlFast(url) {
         logger.error(`Failed to open ${url}: ${error.message}`);
         resolve({ speech: `Failed to open ${url}` });
       } else {
-        logger.log(`✅ Quick opened ${url}`);
+        logger.log(`Quick opened ${url}`);
         resolve({ speech: `Opening ${url}` });
       }
     });
@@ -105,12 +105,12 @@ async function runBrowserAutomation({ url, actions = [] }) {
   try {
     // For simple URL open (no actions) - use Windows shell (NO Playwright)
     if (!actions || actions.length === 0) {
-      logger.log(`🚀 Opening ${url} in default browser`);
+      logger.log(`Opening ${url} in default browser`);
       return await openUrlFast(url);
     }
     
     // ONLY for complex actions, use Playwright
-    logger.log(`🌐 Advanced automation for: ${url}`);
+    logger.log(`Advanced automation for: ${url}`);
     const { page } = await getOrCreateBrowser();
     
     await page.goto(url, {
@@ -148,22 +148,22 @@ async function runBrowserAutomation({ url, actions = [] }) {
           await page.waitForTimeout(100);
           await locator.click({ clickCount: 3 });
           await locator.fill(action.value);
-          logger.log(`✅ Typed: ${action.value}`);
+          logger.log(`Typed: ${action.value}`);
           
           if (url.includes("google.com")) {
             await page.keyboard.press("Enter");
-            logger.log("✅ Auto-submitted search");
+            logger.log("Auto-submitted search");
           }
         }
         
         if (action.type === "click") {
           await page.locator(action.selector).first().click({ timeout: 2000 });
-          logger.log("✅ Clicked");
+          logger.log("Clicked");
         }
         
         if (action.type === "press") {
           await page.keyboard.press(action.key);
-          logger.log(`✅ Pressed ${action.key}`);
+          logger.log(`Pressed ${action.key}`);
         }
         
       } catch (actionError) {
@@ -172,7 +172,7 @@ async function runBrowserAutomation({ url, actions = [] }) {
     }
     
     const duration = Date.now() - startTime;
-    logger.log(`✅ Browser task completed in ${duration}ms`);
+    logger.log(`Browser task completed in ${duration}ms`);
     
     return { speech: `Opening ${url}` };
     

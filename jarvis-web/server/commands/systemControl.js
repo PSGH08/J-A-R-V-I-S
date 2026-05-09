@@ -226,7 +226,7 @@ async function closeWindow({ title }) {
 async function executeCommand({ command }) {
   // Check for dangerous commands
   if (isDangerousCommand(command)) {
-    logger.warn(`⚠️ Blocked dangerous command: ${command}`);
+    logger.warn(`Blocked dangerous command: ${command}`);
     return { 
       success: false, 
       speech: "I cannot execute that command for security reasons." 
@@ -306,7 +306,7 @@ async function takeScreenshot({ savePath }) {
     // Use nircmd to take screenshot (most reliable)
     await execPromise(`${nircmdCmd} savescreenshot "${savePath}"`);
     
-    logger.log(`📸 Screenshot saved: ${savePath}`);
+    logger.log(`Screenshot saved: ${savePath}`);
     return { success: true, speech: `Screenshot saved to your Desktop` };
     
   } catch (error) {

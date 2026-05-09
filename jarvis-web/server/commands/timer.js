@@ -37,7 +37,7 @@ function runTimer({ duration }, socket) {
   const durationMs = duration * 1000;
   const formattedDuration = formatDuration(duration);
   
-  logger.log(`⏰ Timer started for ${formattedDuration} (ID: ${timerId})`);
+  logger.log(`Timer started for ${formattedDuration} (ID: ${timerId})`);
   
   // Store timer info
   activeTimers.set(timerId, {
@@ -50,7 +50,7 @@ function runTimer({ duration }, socket) {
   
   // Set timeout for when timer finishes
   const timeout = setTimeout(() => {
-    logger.log(`⏰ Timer finished: ${formattedDuration}`);
+    logger.log(`Timer finished: ${formattedDuration}`);
     
     // Emit the finished message through socket
     if (socket) {
@@ -107,7 +107,7 @@ function cancelTimer(timerId) {
     const remaining = getTimeRemaining(timerId); // Get remaining BEFORE clearing
     clearTimeout(timer.timeout);
     activeTimers.delete(timerId);
-    logger.log(`❌ Timer ${timerId} cancelled`);
+    logger.log(`Timer ${timerId} cancelled`);
     return { speech: `Timer cancelled, sir. It had ${remaining} remaining.` };
   }
   return { speech: "No timer found to cancel, sir." };

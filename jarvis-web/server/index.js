@@ -12,6 +12,10 @@ const app = express();
 
 const server = http.createServer(app);
 
+// Add near the top with other requires
+const conversationHistory = new Map(); // Store history per socket
+const MAX_HISTORY = 10; // Keep last 10 exchanges
+
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -23,7 +27,7 @@ app.use(express.json());
 
 io.on("connection", (socket) => {
 
-  console.log("⚡ Client connected:", socket.id);
+  console.log("Client connected:", socket.id);
 
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
@@ -41,11 +45,11 @@ io.on("connection", (socket) => {
       // FAST COMMANDS
       // =================================
 
-      console.log("⚡ Running fast parser...");
+      console.log("Running fast parser...");
 
       const fastCommand = parseFastCommand(text);
 
-      console.log("⚡ Fast parser result:", fastCommand);
+      console.log("Fast parser result:", fastCommand);
 
       if (fastCommand) {
 
@@ -54,15 +58,15 @@ io.on("connection", (socket) => {
         // PASS THE SOCKET HERE
         const result = await routeCommand(fastCommand, socket);
 
-        console.log("✅ Route result:", result);
+        console.log("Route result:", result);
 
-        console.log("📤 Sending response to frontend...");
+        console.log("Sending response to frontend...");
 
         socket.emit("response", {
           text: result.speech || "Done."
         });
 
-        console.log("✅ Response emitted");
+        console.log("Response emitted");
 
         console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
@@ -73,12 +77,31 @@ io.on("connection", (socket) => {
       // AI FALLBACK
       // =================================
 
-      console.log("🦙 No fast command found");
+      console.log("No fast command found");
       socket.emit("response", {
         text: "Thinking..."
       });
-      const aiResponse = await queryOllama(SYSTEM_PROMPT + text);
 
+      // Get or create conversation history for this socket
+      if (!conversationHistory.has(socket.id)) {
+        conversationHistory.set(socket.id, []);
+      }
+      const history = conversationHistory.get(socket.id);
+      
+      // Build the prompt with history
+      let promptWithHistory = SYSTEM_PROMPT + "\n\n";
+      promptWithHistory += "Previous conversation:\n";
+      
+      // Add last few exchanges for context
+      const recentHistory = history.slice(-6); // Last 3 exchanges (user + assistant)
+      for (const entry of recentHistory) {
+        promptWithHistory += `User: ${entry.user}\n`;
+        promptWithHistory += `JARVIS: ${JSON.stringify(entry.assistant)}\n`;
+      }
+      
+      promptWithHistory += `\nCurrent request: ${text}`;
+      
+      const aiResponse = await queryOllama(promptWithHistory);
       if (!aiResponse) {
         socket.emit("response", {
           text: "AI is thinking too long. Try again."
@@ -146,6 +169,21 @@ io.on("connection", (socket) => {
       });
 
       console.log("AI Response emitted");
+
+      // SAVE TO CONVERSATION HISTORY
+      history.push({
+        user: text,
+        assistant: command
+      });
+      
+      // Trim history if too long
+      while (history.length > MAX_HISTORY) {
+        history.shift();
+      }
+      
+      console.log(`History: ${history.length} exchanges stored`);
+
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
       console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 

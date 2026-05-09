@@ -1,24 +1,11 @@
 import { getWittyResponse } from './jarvisPersonality';
 
 let isSpeakingGlobal = false;
-let currentVoice = null;
 let onSpeakingChange = null;  // <-- ADD THIS LINE (it's missing!)
 
 export function setSpeakingCallback(callback) {
   onSpeakingChange = callback;
 }
-
-// Expanded British voice options for more natural sound
-const britishVoices = [
-  "Google UK English Male",
-  "Microsoft George - English (United Kingdom)",
-  "Daniel (United Kingdom)",
-  "British English Male",
-  "UK English Male",
-  "Google UK English",
-  "Microsoft Ryan - English (Great Britain)",
-  "Microsoft David - English (United Kingdom)"
-];
 
 // JARVIS personality phrases for different situations
 const jarvisPersonality = {

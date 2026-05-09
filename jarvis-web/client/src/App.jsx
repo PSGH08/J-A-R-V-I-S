@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { socket } from "./services/socket";
-import { speak, speakDramatically, wittyInterjection, speakWithPersonality, setSpeakingCallback, isJarvisSpeaking as checkIsSpeaking } from "./services/speech";import { useVoice } from "./hooks/useVoice";
+import { speak, speakDramatically, speakWithPersonality, setSpeakingCallback, isJarvisSpeaking as checkIsSpeaking } from "./services/speech";
+import { useVoice } from "./hooks/useVoice";
 import AudioVisualizer from "./components/AudioVisualizer";
 
 export default function App() {
@@ -310,31 +311,6 @@ export default function App() {
               Send
             </button>
           </motion.div>
-
-          {/* Add this button anywhere in your JSX - I suggest near the voice controls */}
-          <button
-            onClick={() => {
-              const voices = speechSynthesis.getVoices();
-              console.log("🎙️ ===== ALL AVAILABLE VOICES =====");
-              console.log(`Total voices: ${voices.length}`);
-              console.log(" ");
-              voices.forEach((voice, index) => {
-                console.log(`${index}: "${voice.name}" | ${voice.lang} | ${voice.default ? '⭐ DEFAULT' : ''}`);
-              });
-              console.log(" ");
-              console.log("🎙️ Current JARVIS voice selection priority:");
-              console.log("Looking for British male voices first (George, Daniel, Google UK)");
-              console.log("Then any en-GB voice");
-              console.log("Then any English voice");
-              console.log("==============================");
-              
-              // Also show in an alert for quick view
-              alert(`Check console (F12) for full voice list!\n\nTotal voices: ${voices.length}`);
-            }}
-            className="px-3 py-1 rounded-lg bg-purple-500/20 text-purple-400 text-xs hover:bg-purple-500/30 transition"
-          >
-            Debug Voices
-          </button>
 
         </div>
 
