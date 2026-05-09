@@ -260,6 +260,16 @@ function parseFastCommand(text) {
     return { type: "time" };
   }
 
+  // Check timer status
+  if (input.includes("how much time") || input.includes("time left") || input.includes("timer status") || input.includes("check timer") || input === "timer") {
+    return { type: "check_timer" };
+  }
+
+  // Cancel timer
+  if (input.includes("cancel timer") || input.includes("stop timer") || input.includes("kill timer") || input.includes("end timer")) {
+    return { type: "cancel_timer" };
+  }
+
   const timerMatch = input.match(/(\d+)\s*(second|seconds|minute|minutes|hour|hours)/);
   if (input.includes("timer") && timerMatch) {
     let duration = parseInt(timerMatch[1]);
@@ -430,7 +440,6 @@ function parseFastCommand(text) {
       "Welcome home. Miss anything?",
       "Back so soon? Just kidding, welcome home.",
       "Welcome back, boss. Ready to get to work?",
-      "Ah, daddy's home. I've kept the place running, don't worry.",
       "Welcome back. The suit's charged and ready.",
     ];
     return { type: "text_to_speech", text: responses[Math.floor(Math.random() * responses.length)] };

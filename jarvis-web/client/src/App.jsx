@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { socket } from "./services/socket";
-import { speak, speakDramatically, wittyInterjection, speakWithPersonality } from "./services/speech";
-import { useVoice } from "./hooks/useVoice";
+import { speak, speakDramatically, wittyInterjection, speakWithPersonality, setSpeakingCallback, isJarvisSpeaking as checkIsSpeaking } from "./services/speech";import { useVoice } from "./hooks/useVoice";
+import AudioVisualizer from "./components/AudioVisualizer";
 
 export default function App() {
   const [input, setInput] = useState("");
   const [response, setResponse] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasGreeted, setHasGreeted] = useState(false);
+  const [isJarvisSpeaking, setIsJarvisSpeaking] = useState(false);
 
   const { listening, text, startListening, stopListening } = useVoice();
 
@@ -17,6 +18,15 @@ export default function App() {
     return () => {
       delete window.socket;
     };
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const speaking = checkIsSpeaking();
+      setIsJarvisSpeaking(speaking);
+    }, 100);
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -203,7 +213,7 @@ export default function App() {
         {/* LEFT COLUMN */}
         <div className="space-y-6">
 
-          {/* HEADER - Bigger, glow border */}
+          {/* HEADER - With Audio Visualizer */}
           <motion.div 
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -214,30 +224,28 @@ export default function App() {
             <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             
             <div className="relative z-10">
-              <div className="text-xs tracking-[0.2em] text-zinc-500 uppercase font-medium">AI System</div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs tracking-[0.2em] text-zinc-500 uppercase font-medium">AI System</div>
+                {isJarvisSpeaking && (
+                  <motion.span 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-xs text-sky-400 animate-pulse"
+                  >
+                    SPEAKING
+                  </motion.span>
+                )}
+              </div>
 
-              <div className="text-5xl font-bold tracking-tight mt-2 bg-gradient-to-r from-white via-white to-sky-300 bg-clip-text text-transparent">
+              <div className="text-5xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-sky-300 bg-clip-text text-transparent">
                 J.A.R.V.I.S.
               </div>
 
-              <div className="text-sm text-sky-400/70 mt-2 font-light tracking-wide">Just A Rather Very Intelligent System</div>
+              <div className="text-sm text-sky-400/70 mt-1 font-light tracking-wide">Just A Rather Very Intelligent System</div>
 
-              <div className="mt-5 flex items-center gap-3">
-                <div className="text-sm text-zinc-500 font-medium">Status:</div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full ${
-                    listening ? 'bg-emerald-400 shadow-lg shadow-emerald-400/50 animate-pulse' : 
-                    isProcessing ? 'bg-sky-400 shadow-lg shadow-sky-400/50 animate-pulse' : 
-                    'bg-zinc-600'
-                  }`}></div>
-                  <span className={`text-sm font-medium ${
-                    listening ? 'text-emerald-400' : 
-                    isProcessing ? 'text-sky-400' : 
-                    'text-zinc-500'
-                  }`}>
-                    {listening ? "Listening" : isProcessing ? "Processing" : "Idle"}
-                  </span>
-                </div>
+              {/* AUDIO VISUALIZER */}
+              <div className="mt-4 mb-3">
+                <AudioVisualizer isSpeaking={isJarvisSpeaking} />
               </div>
             </div>
           </motion.div>

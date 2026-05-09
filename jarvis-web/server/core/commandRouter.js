@@ -1,4 +1,4 @@
-const { runTimer } = require("../commands/timer");
+const { runTimer, checkTimer, cancelTimer, getActiveTimers } = require("../commands/timer");
 const { openApp } = require("../commands/appControl");
 const { runBrowserAutomation } = require("../commands/browser");
 const systemControl = require("../commands/systemControl");
@@ -25,6 +25,25 @@ async function routeCommand(command, socket) {
     case "timer":
       const timerRes = runTimer(command, socket);
       result = { speech: timerRes?.speech || "Timer started" };
+      break;
+
+    case "check_timer":
+      const timerCheckResult = checkTimer(socket);
+      result = { speech: timerCheckResult?.speech || "No timers running." };
+      break;
+
+    case "cancel_timer":
+      const timers = getActiveTimers();
+      if (timers.length === 0) {
+        result = { speech: "No timers are currently running, sir." };
+      } else if (timers.length === 1) {
+        const cancelResult = cancelTimer(timers[0].id);
+        result = { speech: cancelResult?.speech || "Timer cancelled." };
+      } else {
+        // Cancel the most recent timer
+        const cancelResult = cancelTimer(timers[timers.length - 1].id);
+        result = { speech: cancelResult?.speech || "Timer cancelled." };
+      }
       break;
 
     case "open_app":

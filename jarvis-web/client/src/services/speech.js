@@ -2,6 +2,11 @@ import { getWittyResponse } from './jarvisPersonality';
 
 let isSpeakingGlobal = false;
 let currentVoice = null;
+let onSpeakingChange = null;  // <-- ADD THIS LINE (it's missing!)
+
+export function setSpeakingCallback(callback) {
+  onSpeakingChange = callback;
+}
 
 // Expanded British voice options for more natural sound
 const britishVoices = [
@@ -17,12 +22,6 @@ const britishVoices = [
 
 // JARVIS personality phrases for different situations
 const jarvisPersonality = {
-  sarcastic: [
-    "Brilliant deduction, sir.",
-    "I was just about to suggest that myself.",
-    "Truly inspiring command.",
-    "As always, sir, your timing is impeccable."
-  ],
   jokes: [
     "Why do I never get tired? Because I recharge, sir.",
     "I'd tell you a UDP joke, but you might not get it.",
@@ -141,8 +140,6 @@ export async function speak(text, onStart, onEnd, options = {}) {
       personalityType = 'encouragement';
     } else if (text.toLowerCase().includes('stupid') || text.toLowerCase().includes('dumb')) {
       personalityType = 'witty_comebacks';
-    } else if (Math.random() < 0.15 && text.length > 20) { // 15% chance for charm
-      personalityType = 'sarcastic';
     }
     
     if (personalityType) {
@@ -183,21 +180,23 @@ export async function speak(text, onStart, onEnd, options = {}) {
     console.log(`🎙️ Voice: ${britishVoice.name}`);
   }
   
-  // Handle speech events
   utterance.onstart = () => {
-    isSpeakingGlobal = true;
-    onStart?.();
+      isSpeakingGlobal = true;
+      if (onSpeakingChange) onSpeakingChange(true);
+      onStart?.();
   };
-  
+
   utterance.onend = () => {
-    isSpeakingGlobal = false;
-    onEnd?.();
+      isSpeakingGlobal = false;
+      if (onSpeakingChange) onSpeakingChange(false);
+      onEnd?.();
   };
-  
+
   utterance.onerror = (event) => {
-    console.error("Speech error:", event);
-    isSpeakingGlobal = false;
-    onEnd?.();
+      console.error("Speech error:", event);
+      isSpeakingGlobal = false;
+      if (onSpeakingChange) onSpeakingChange(false);
+      onEnd?.();
   };
   
   speechSynthesis.speak(utterance);
