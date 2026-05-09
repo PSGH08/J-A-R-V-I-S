@@ -22,14 +22,14 @@ export function useVoice() {
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
-      console.log("🎤 Voice recognition started");
+      console.log("Voice recognition started");
       setListening(true);
     };
 
     recognition.onresult = (event) => {
       // Ignore results when JARVIS is speaking
       if (isJarvisSpeaking()) {
-        console.log("🔇 Ignoring voice input - JARVIS is speaking");
+        console.log("Ignoring voice input - JARVIS is speaking");
         return;
       }
       
@@ -47,12 +47,12 @@ export function useVoice() {
       
       const finalText = final || interim;
       if (finalText && !isJarvisSpeaking()) {
-        console.log(`🎤 Heard: "${finalText}"`);
+        console.log(`Heard: "${finalText}"`);
         setText(finalText);
         
         // Send EVERYTHING to socket - backend will handle wake word
         if (final && window.socket) {
-          console.log(`📤 Sending to backend: "${finalText}"`);
+          console.log(`Sending to backend: "${finalText}"`);
           window.socket.emit("command", finalText);
           setText(""); // Clear after sending
         }
@@ -82,7 +82,7 @@ export function useVoice() {
     };
 
     recognition.onend = () => {
-      console.log("🎤 Voice recognition ended");
+      console.log("Voice recognition ended");
       
       // Clear any pending restart
       if (restartTimeoutRef.current) {
@@ -93,7 +93,7 @@ export function useVoice() {
       if (shouldBeListeningRef.current) {
         // If JARVIS is speaking, wait for it to finish
         if (isJarvisSpeaking()) {
-          console.log("🔇 Waiting for JARVIS to finish speaking before restarting...");
+          console.log("Waiting for JARVIS to finish speaking before restarting...");
           const checkInterval = setInterval(() => {
             if (!isJarvisSpeaking() && shouldBeListeningRef.current) {
               clearInterval(checkInterval);
@@ -127,7 +127,7 @@ export function useVoice() {
       if (recognitionRef.current && !isJarvisSpeaking()) {
         recognitionRef.current.start();
         shouldBeListeningRef.current = true;
-        console.log("🎤 Auto-starting voice recognition...");
+        console.log("Auto-starting voice recognition...");
       }
     }, 1000);
 
@@ -158,7 +158,7 @@ export function useVoice() {
         try {
           if (recognition && listening) {
             recognition.stop();
-            console.log("🔇 Paused microphone - JARVIS is speaking");
+            console.log("Paused microphone - JARVIS is speaking");
           }
         } catch (err) {
           // Ignore errors
@@ -176,7 +176,7 @@ export function useVoice() {
     
     // If JARVIS is speaking, wait for it to finish
     if (isJarvisSpeaking()) {
-      console.log("🔇 Waiting for JARVIS to finish speaking before starting...");
+      console.log("Waiting for JARVIS to finish speaking before starting...");
       const waitInterval = setInterval(() => {
         if (!isJarvisSpeaking()) {
           clearInterval(waitInterval);
@@ -190,7 +190,7 @@ export function useVoice() {
       recognitionRef.current.start();
       setListening(true);
       setText("");
-      console.log("🎤 Started listening for commands");
+      console.log("Started listening for commands");
     } catch (err) {
       console.error("Failed to start recognition:", err);
       // If already started, that's fine
@@ -212,7 +212,7 @@ export function useVoice() {
     }
     setListening(false);
     setText("");
-    console.log("🎤 Stopped listening");
+    console.log("Stopped listening");
   };
 
   return { listening, text, startListening, stopListening };

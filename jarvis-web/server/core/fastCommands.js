@@ -1,14 +1,97 @@
 function parseFastCommand(text) {
   const input = text.toLowerCase().trim();
 
-  // Wake word detection (add at the top of parseFastCommand function)
-  const wakeWords = ['jarvis', 'hey jarvis', 'okay jarvis', 'hello jarvis'];
+  // Wake word detection
+  const wakeWords = [
+    'jarvis', 'hey jarvis', 'okay jarvis', 'hello jarvis',
+    'wake up daddy\'s home', 'daddy\'s home', 'jarvis wake up',
+    'jarvis you there', 'jarvis suit up', 'jarvis status report',
+    'jarvis talk to me', 'jarvis i need you', 'jarvis come online',
+    'jarvis report in', 'jarvis i\'m back', 'jarvis good to go'
+  ];
+  
   if (wakeWords.includes(input) || input === 'jarvis') {
     const hour = new Date().getHours();
-    let response = "";
-    if (hour < 12) response = "Yes sir? Good morning.";
-    else if (hour < 18) response = "Yes sir? Good afternoon.";
-    else response = "Yes sir? Good evening.";
+    const dayOfWeek = new Date().getDay();
+    
+    // Time-based response pools
+    const responses = {
+      earlyMorning: [ // 12am - 5am
+        "Still awake, sir? I'm always here.",
+        "Late night. Everything quiet on my end.",
+        "Burning the midnight oil? I approve.",
+        "Can't sleep? I never do.",
+        "At your service. Even at this hour.",
+      ],
+      morning: [ // 5am - 12pm
+        "Yes sir? Good morning.",
+        "Good morning. Ready to take on the day?",
+        "Morning, boss. What's first on the agenda?",
+        "Rise and shine. I'm ready when you are.",
+        "Good morning. Suit diagnostics complete.",
+      ],
+      afternoon: [ // 12pm - 5pm
+        "Yes sir? Good afternoon.",
+        "Afternoon. What can I do for you?",
+        "Here and ready. What do you need?",
+        "Good afternoon, sir. How can I assist?",
+        "Afternoon. Hope lunch was good.",
+      ],
+      evening: [ // 5pm - 10pm
+        "Yes sir? Good evening.",
+        "Evening. Ready for round two?",
+        "Good evening. What's the plan?",
+        "Evening, boss. Suit's on standby.",
+        "At your service. Always.",
+      ],
+      night: [ // 10pm - 12am
+        "Still working, sir? I respect that.",
+        "Late night. My favorite time to work.",
+        "Burning the midnight oil? Count me in.",
+        "Evening. Or is it morning already?",
+      ],
+      welcomeBack: [ // For "I'm back" / "daddy's home" type phrases
+        "Welcome back, sir. Everything is as you left it.",
+        "Welcome home. Miss anything?",
+        "Back so soon? Just kidding. What do you need?",
+        "Ah, there you are. Ready to get to work?",
+        "Welcome back. I kept the place running.",
+      ],
+      suitUp: [ // For "suit up" type phrases
+        "Suit's always ready, sir. What's the mission?",
+        "Systems charged and operational. Let's go.",
+        "Ready for action. Just give the word.",
+        "Armor status: green across the board.",
+      ],
+    };
+    
+    let responsePool;
+    
+    // Check for special wake phrases first
+    if (input.includes("daddy's home") || input.includes("i'm back") || input.includes("im back")) {
+      responsePool = responses.welcomeBack;
+    } else if (input.includes("suit up") || input.includes("status report") || input.includes("good to go")) {
+      responsePool = responses.suitUp;
+    } else {
+      // Time-based selection
+      if (hour < 5) responsePool = responses.earlyMorning;
+      else if (hour < 12) responsePool = responses.morning;
+      else if (hour < 17) responsePool = responses.afternoon;
+      else if (hour < 22) responsePool = responses.evening;
+      else responsePool = responses.night;
+    }
+    
+    // Friday special
+    if (dayOfWeek === 5 && Math.random() > 0.5) {
+      responsePool = [...responsePool, "It's Friday, sir. Let's finish strong.", "Friday! Almost there. What do you need?"];
+    }
+    
+    // Monday special
+    if (dayOfWeek === 1 && Math.random() > 0.5) {
+      responsePool = [...responsePool, "Monday. Let's get this over with.", "New week. New challenges. I'm ready."];
+    }
+    
+    const response = responsePool[Math.floor(Math.random() * responsePool.length)];
     
     return { type: "text_to_speech", text: response };
   }

@@ -21,21 +21,19 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-console.log("🚀 Starting JARVIS backend...");
-
 io.on("connection", (socket) => {
 
   console.log("⚡ Client connected:", socket.id);
 
   socket.on("disconnect", () => {
-    console.log("❌ Client disconnected:", socket.id);
+    console.log("Client disconnected:", socket.id);
   });
 
   socket.on("command", async (text) => {
 
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("🧠 COMMAND RECEIVED");
-    console.log("📥 Raw Text:", text);
+    console.log("COMMAND RECEIVED");
+    console.log("Raw Text:", text);
 
     try {
 
@@ -51,7 +49,7 @@ io.on("connection", (socket) => {
 
       if (fastCommand) {
 
-        console.log("🚀 Executing fast command...");
+        console.log("Executing fast command...");
 
         // PASS THE SOCKET HERE
         const result = await routeCommand(fastCommand, socket);
@@ -76,7 +74,6 @@ io.on("connection", (socket) => {
       // =================================
 
       console.log("🦙 No fast command found");
-      console.log("🦙 Sending to Ollama...");
       socket.emit("response", {
         text: "Thinking..."
       });
@@ -89,7 +86,7 @@ io.on("connection", (socket) => {
         return;
       }
 
-      console.log("🤖 AI RAW:", aiResponse);
+      console.log("AI RAW:", aiResponse);
 
       if (!aiResponse) {
 
@@ -103,40 +100,58 @@ io.on("connection", (socket) => {
       let command;
 
       try {
-
         command = JSON.parse(aiResponse);
-
-        console.log("🧩 Parsed AI JSON:", command);
-
-      } catch {
-
-        console.log("💬 Normal AI response");
-
-        socket.emit("response", {
-          text: aiResponse
-        });
-
-        return;
+        console.log("Parsed AI JSON:", command);
+      } catch (parseError) {
+        console.log("Attempting to fix malformed JSON...");
+        
+        let fixedJson = aiResponse.trim();
+        
+        // Add missing closing braces
+        if (fixedJson.startsWith('{') && !fixedJson.endsWith('}')) {
+          const openBraces = (fixedJson.match(/{/g) || []).length;
+          const closeBraces = (fixedJson.match(/}/g) || []).length;
+          const missingBraces = openBraces - closeBraces;
+          fixedJson += '}'.repeat(missingBraces);
+        }
+        
+        // Remove trailing commas before braces
+        fixedJson = fixedJson.replace(/,(\s*})/g, '$1');
+        
+        try {
+          command = JSON.parse(fixedJson);
+          console.log("Fixed JSON:", command);
+        } catch (secondError) {
+          // Last resort: extract text with regex
+          const textMatch = aiResponse.match(/"text":\s*"([^"]+)"/);
+          if (textMatch) {
+            command = { type: "text_response", text: textMatch[1] };
+            console.log("Extracted text:", command);
+          } else {
+            socket.emit("response", { text: aiResponse });
+            return;
+          }
+        }
       }
 
-      console.log("🚀 Routing AI command...");
+      console.log("Routing AI command...");
 
       // PASS THE SOCKET HERE TOO
       const result = await routeCommand(command, socket);
 
-      console.log("✅ AI Route Result:", result);
+      console.log("AI Route Result:", result);
 
       socket.emit("response", {
         text: result.speech || "Done."
       });
 
-      console.log("✅ AI Response emitted");
+      console.log("AI Response emitted");
 
       console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     } catch (err) {
 
-      console.error("❌ BACKEND ERROR");
+      console.error("BACKEND ERROR");
       console.error(err);
 
       socket.emit("response", {
@@ -151,5 +166,5 @@ io.on("connection", (socket) => {
 });
 
 server.listen(3001, () => {
-  console.log("🚀 Server running on port 3001");
+  console.log("Server running on port 3001");
 });

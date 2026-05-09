@@ -107,13 +107,10 @@ function enhanceJarvisSpeech(text) {
   // Add British sophistication
   enhanced = enhanced
     .replace(/I think/g, "I believe")
-    .replace(/I will/g, "I shall")
     .replace(/OK/g, "Quite right")
     .replace(/yes/g, "indeed")
     .replace(/got it/g, "understood")
     .replace(/no problem/g, "not an issue at all")
-    .replace(/by the way/g, "incidentally")
-    .replace(/anyway/g, "in any case")
     .replace(/sorry/g, "I do apologise")
     .replace(/please/g, "if you would be so kind")
     .replace(/hey/g, "pardon me");
