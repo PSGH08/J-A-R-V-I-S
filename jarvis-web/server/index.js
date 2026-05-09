@@ -16,6 +16,14 @@ const server = http.createServer(app);
 const conversationHistory = new Map(); // Store history per socket
 const MAX_HISTORY = 10; // Keep last 10 exchanges
 
+// Wake word state
+let wakeWordActive = false;
+
+function resetWakeWord() {
+  wakeWordActive = false;
+  console.log("Wake word reset - say Jarvis again");
+}
+
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -33,7 +41,35 @@ io.on("connection", (socket) => {
     console.log("Client disconnected:", socket.id);
   });
 
+  socket.on("resetWakeWord", () => {
+  resetWakeWord();
+  socket.emit("response", { text: "Wake word reset sir. Say Jarvis when you need me." });
+  });
+
   socket.on("command", async (text) => {
+
+    console.log("Raw Text:", text);
+
+    // WAKE WORD CHECK - blocks everything until activated
+    const lowerText = text.toLowerCase().trim();
+    const wakeWords = [
+      'jarvis', 'hey jarvis', 'okay jarvis', 'hello jarvis',
+      'wake up daddy\'s home', 'daddy\'s home', 'jarvis wake up',
+      'jarvis you there', 'jarvis suit up', 'jarvis status report',
+      'jarvis talk to me', 'jarvis i need you', 'jarvis come online',
+      'jarvis report in', 'jarvis i\'m back', 'jarvis good to go'
+    ];    
+    const isWake = wakeWords.some(w => lowerText === w || lowerText.startsWith(w + ' '));
+    
+    if (!wakeWordActive && !isWake) {
+      console.log("Wake word not active. Ignoring.");
+      return;
+    }
+    
+    if (isWake) {
+      wakeWordActive = true;
+      console.log("Wake word activated!");
+    }
 
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log("COMMAND RECEIVED");
@@ -182,8 +218,6 @@ io.on("connection", (socket) => {
       }
       
       console.log(`History: ${history.length} exchanges stored`);
-
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
       console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 

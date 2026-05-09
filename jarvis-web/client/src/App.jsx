@@ -282,6 +282,13 @@ export default function App() {
                 >
                   Stop Voice
                 </button>
+
+                <button
+                  onClick={() => window.socket.emit("resetWakeWord")}
+                  className="px-6 py-2.5 rounded-xl bg-amber-500/20 text-amber-400 text-sm font-medium hover:bg-amber-500/30 transition-all duration-300 active:scale-95 border border-amber-500/30"
+                >
+                  Lock Jarvis
+                </button>
               </div>
             </div>
           </motion.div>

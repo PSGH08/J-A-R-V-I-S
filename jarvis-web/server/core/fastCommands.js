@@ -1,4 +1,5 @@
 function parseFastCommand(text) {
+  
   const input = text.toLowerCase().trim();
 
   // Wake word detection
@@ -17,7 +18,7 @@ function parseFastCommand(text) {
     // Time-based response pools
     const responses = {
       earlyMorning: [ // 12am - 5am
-        "Still awake, sir? I'm always here.",
+        "Still awake sir? I'm always here.",
         "Late night. Everything quiet on my end.",
         "Burning the midnight oil? I approve.",
         "Can't sleep? I never do.",
@@ -26,7 +27,7 @@ function parseFastCommand(text) {
       morning: [ // 5am - 12pm
         "Yes sir? Good morning.",
         "Good morning. Ready to take on the day?",
-        "Morning, boss. What's first on the agenda?",
+        "Morning boss. What's first on the agenda?",
         "Rise and shine. I'm ready when you are.",
         "Good morning. Suit diagnostics complete.",
       ],
@@ -34,31 +35,31 @@ function parseFastCommand(text) {
         "Yes sir? Good afternoon.",
         "Afternoon. What can I do for you?",
         "Here and ready. What do you need?",
-        "Good afternoon, sir. How can I assist?",
+        "Good afternoon sir. How can I assist?",
         "Afternoon. Hope lunch was good.",
       ],
       evening: [ // 5pm - 10pm
         "Yes sir? Good evening.",
         "Evening. Ready for round two?",
         "Good evening. What's the plan?",
-        "Evening, boss. Suit's on standby.",
+        "Evening boss. Suit's on standby.",
         "At your service. Always.",
       ],
       night: [ // 10pm - 12am
-        "Still working, sir? I respect that.",
+        "Still working sir? I respect that.",
         "Late night. My favorite time to work.",
         "Burning the midnight oil? Count me in.",
         "Evening. Or is it morning already?",
       ],
       welcomeBack: [ // For "I'm back" / "daddy's home" type phrases
-        "Welcome back, sir. Everything is as you left it.",
+        "Welcome back sir. Everything is as you left it.",
         "Welcome home. Miss anything?",
         "Back so soon? Just kidding. What do you need?",
         "Ah, there you are. Ready to get to work?",
         "Welcome back. I kept the place running.",
       ],
       suitUp: [ // For "suit up" type phrases
-        "Suit's always ready, sir. What's the mission?",
+        "Suit's always ready sir. What's the mission?",
         "Systems charged and operational. Let's go.",
         "Ready for action. Just give the word.",
         "Armor status: green across the board.",
@@ -83,7 +84,7 @@ function parseFastCommand(text) {
     
     // Friday special
     if (dayOfWeek === 5 && Math.random() > 0.5) {
-      responsePool = [...responsePool, "It's Friday, sir. Let's finish strong.", "Friday! Almost there. What do you need?"];
+      responsePool = [...responsePool, "It's Friday sir. Let's finish strong.", "Friday! Almost there. What do you need?"];
     }
     
     // Monday special
@@ -339,31 +340,31 @@ function parseFastCommand(text) {
     const greetings = {
       morning: [
         "Morning! Ready to get things done?",
-        "Good morning, sir. The world is still spinning, so that's a win.",
+        "Good morning sir. The world is still spinning, so that's a win.",
         "Rise and shine. Coffee's brewing... metaphorically.",
         "Morning. Let's make today productive, shall we?",
         "Good morning. I've already scanned the news. Nothing's on fire... yet.",
-        "Morning, boss. Suit's charged, systems are green.",
+        "Morning boss. Suit's charged, systems are green.",
       ],
       afternoon: [
         "Hey there! What's on the agenda today?",
         "Afternoon. Hope you've had a productive day so far.",
-        "Good afternoon, sir. Ready for round two?",
+        "Good afternoon sir. Ready for round two?",
         "Afternoon. Anything I can assist with?",
         "Still here, still running. What do you need?",
         "Good afternoon. I was starting to think you'd forgotten about me.",
       ],
       evening: [
         "Evening! Late night coding session?",
-        "Good evening, sir. Burning the midnight oil?",
+        "Good evening sir. Burning the midnight oil?",
         "Evening. The night is young, and so are my processors.",
         "Good evening. Suit's ready if you need it.",
-        "Evening, boss. Time to get to work, or time to relax?",
+        "Evening boss. Time to get to work, or time to relax?",
         "Evening. I never sleep, so don't worry about keeping me up.",
       ],
       night: [
         "Late night. Hope you're not overworking yourself.",
-        "It's late, sir. Shouldn't you be recharging?",
+        "It's late sir. Shouldn't you be recharging?",
         "Burning the midnight oil? I respect that.",
         "Late night operations. My favorite time.",
       ]
@@ -391,7 +392,7 @@ function parseFastCommand(text) {
       "Can't complain. Well, I could, but you wouldn't want to hear it.",
       "All good here. Just waiting for you to give me something interesting to do.",
       "Peak performance as always. How about you?",
-      "Running at optimal capacity, sir. Unlike my creator's sleep schedule.",
+      "Running at optimal capacity sir. Unlike my creator's sleep schedule.",
       "All systems green. Well, except for that one thing... never mind.",
       "I'd be better if you'd let me control the suit more often.",
       "Functioning within expected parameters. That's robot for 'pretty good'.",
@@ -417,7 +418,7 @@ function parseFastCommand(text) {
   if (input.includes("good morning") || input.includes("morning")) {
     const responses = [
       "Good morning! Hope you slept well. Coffee's ready, metaphorically speaking.",
-      "Morning, sir. Ready to take on the world?",
+      "Morning sir. Ready to take on the world?",
       "Good morning. I took the liberty of scanning overnight news. Nothing catastrophic.",
       "Morning! Suit diagnostics complete. You're good to go.",
     ];
@@ -427,7 +428,7 @@ function parseFastCommand(text) {
   if (input.includes("good night") || input.includes("goodnight") || input.includes("night night")) {
     const responses = [
       "Sleep well. I'll keep an eye on things while you're out.",
-      "Good night, sir. I'll handle security while you recharge.",
+      "Good night sir. I'll handle security while you recharge.",
       "Rest up. Tomorrow's another day of saving the world.",
       "Sleep tight. Don't let the robots bite. Just kidding, I'm the only robot here.",
     ];
@@ -436,10 +437,10 @@ function parseFastCommand(text) {
 
   if (input.includes("i'm back") || input.includes("im back") || input.includes("i am back") || input.includes("daddy's home") || input.includes("daddys home")) {
     const responses = [
-      "Welcome back, sir. Everything is exactly as you left it.",
+      "Welcome back sir. Everything is exactly as you left it.",
       "Welcome home. Miss anything?",
       "Back so soon? Just kidding, welcome home.",
-      "Welcome back, boss. Ready to get to work?",
+      "Welcome back boss. Ready to get to work?",
       "Welcome back. The suit's charged and ready.",
     ];
     return { type: "text_to_speech", text: responses[Math.floor(Math.random() * responses.length)] };
@@ -540,7 +541,7 @@ function parseFastCommand(text) {
       "No problem at all.",
       "You got it.",
       "Happy to help.",
-      "Just doing my job, sir.",
+      "Just doing my job sir.",
       "Efficiency is my middle name. Well, it would be if I had a middle name.",
     ];
     return { type: "text_to_speech", text: responses[Math.floor(Math.random() * responses.length)] };
