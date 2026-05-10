@@ -196,16 +196,6 @@ function parseFastCommand(text) {
     return { type: "kill_process", name: processName };
   }
 
-  // Minimize window
-  if (input.match(/^minimize\s+(.+)/)) {
-      return { type: "minimize_window", title: input.match(/^minimize (.+)/)[1] };
-  }
-
-  // Close window
-  if (input.match(/^close\s+(.+)/)) {
-      return { type: "close_window", title: input.match(/^close (.+)/)[1] };
-  }
-
   // System info
   if (input.includes("system info") || input.includes("system information") || input === "info") {
     return { type: "system_info" };

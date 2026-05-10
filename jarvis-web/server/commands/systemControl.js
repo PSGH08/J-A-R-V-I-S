@@ -197,58 +197,6 @@ async function getDiskSpace() {
   }
 }
 
-// ============ WINDOWS MANAGEMENT ============
-
-async function minimizeWindow({ title }) {
-  const result = await runPowerShell(`
-    Add-Type @"
-      using System;
-      using System.Runtime.InteropServices;
-      public class Window {
-        [DllImport("user32.dll")]
-        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-        [DllImport("user32.dll")]
-        public static extern IntPtr FindWindow(string className, string windowName);
-      }
-"@
-    $hwnd = [Window]::FindWindow($null, "${title}")
-    if ($hwnd -ne [IntPtr]::Zero) {
-      [Window]::ShowWindow($hwnd, 6)
-      Write-Output "minimized"
-    }
-  `);
-  
-  if (result.output.includes("minimized")) {
-    return { success: true, speech: `Minimized ${title}` };
-  }
-  return { success: false, speech: `Could not find window: ${title}` };
-}
-
-async function closeWindow({ title }) {
-  const result = await runPowerShell(`
-    Add-Type @"
-      using System;
-      using System.Runtime.InteropServices;
-      public class Window {
-        [DllImport("user32.dll")]
-        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-        [DllImport("user32.dll")]
-        public static extern IntPtr FindWindow(string className, string windowName);
-      }
-"@
-    $hwnd = [Window]::FindWindow($null, "${title}")
-    if ($hwnd -ne [IntPtr]::Zero) {
-      [Window]::ShowWindow($hwnd, 0)
-      Write-Output "closed"
-    }
-  `);
-  
-  if (result.output.includes("closed")) {
-    return { success: true, speech: `Closed ${title}` };
-  }
-  return { success: false, speech: `Could not close window: ${title}` };
-}
-
 // ============ EXECUTE COMMANDS (with safety) ============
 
 async function executeCommand({ command }) {
@@ -375,10 +323,6 @@ module.exports = {
   // System info
   getSystemInfo,
   getDiskSpace,
-  
-  // Window management
-  minimizeWindow,
-  closeWindow,
   
   // Volume control
   setVolume,

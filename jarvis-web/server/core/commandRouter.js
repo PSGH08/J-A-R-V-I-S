@@ -134,6 +134,11 @@ async function routeCommand(command, socket) {
       const kill = await systemControl.killProcess(command);
       result = { speech: kill.speech };
       break;
+    
+    case "start_process":
+      const startResult = await systemControl.startProcess(command);
+      result = { speech: startResult?.speech || "Could not start process" };
+      break;
       
     case "system_info":
       const sysInfo = await systemControl.getSystemInfo();
