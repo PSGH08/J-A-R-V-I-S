@@ -115,7 +115,7 @@ function parseFastCommand(text) {
   if (openAppMatch) {
     const appName = openAppMatch[1].trim();
     // Don't match if it's a known website or command
-    const isWebsite = ['youtube', 'google', 'github', 'gmail', 'x', 'twitter', 'linkedin', 'reddit', 'netflix', 'amazon'].includes(appName);
+    const isWebsite = ['youtube', 'google', 'github', 'gmail', 'x', 'twitter', 'linkedin'].includes(appName);
     const isCommand = ['timer', 'joke', 'calculator', 'notepad', 'cmd', 'paint'].includes(appName);
     
     if (!isWebsite && !isCommand) {
@@ -130,36 +130,59 @@ function parseFastCommand(text) {
   // SYSTEM CONTROL COMMANDS
   // ============================================
 
-  // File operations
+  // File operations - natural language support
   
-  // List files - support both "list files in X" and "ls X"
+  // Helper: extract filename and optional folder
+  function parseFilePath(input) {
+    // Pattern: "<filename> in <folder>" or "<filename> on desktop" etc.
+    const inMatch = input.match(/^(.+?)\s+in\s+(.+)$/i);
+    if (inMatch) {
+      const fileName = inMatch[1].trim();
+      const folderName = inMatch[2].trim();
+      return `${folderName}/${fileName}`;
+    }
+    // Pattern: "<filename> from <folder>"
+    const fromMatch = input.match(/^(.+?)\s+from\s+(.+)$/i);
+    if (fromMatch) {
+      const fileName = fromMatch[1].trim();
+      const folderName = fromMatch[2].trim();
+      return `${folderName}/${fileName}`;
+    }
+    // Just filename
+    return input.trim();
+  }
+  
+  // List files - "list files in Documents" or "ls Downloads"
   let listFilesMatch = input.match(/list (?:files|contents?) (?:in |from )?(.+)/);
   if (!listFilesMatch) {
     listFilesMatch = input.match(/^ls\s+(.+)/);
   }
   if (!listFilesMatch) {
-    listFilesMatch = input.match(/list\s+(.+)/);
+    listFilesMatch = input.match(/^list\s+(.+)/);
   }
-
   if (listFilesMatch && listFilesMatch[1]) {
-    let path = listFilesMatch[1].trim();
-    // Remove quotes if present
-    path = path.replace(/^["']|["']$/g, '');
-    return { type: "list_files", path: path };
+    let folderPath = listFilesMatch[1].trim().replace(/^["']|["']$/g, '');
+    return { type: "list_files", path: folderPath };
   }
 
+  // Create file - "create file test.txt in Documents"
   if (input.match(/^create\s+file\s+(.+)/)) {
-    const filePath = input.match(/^create file (.+)/)[1];
+    const rawPath = input.match(/^create file (.+)/)[1];
+    const filePath = parseFilePath(rawPath);
     return { type: "create_file", path: filePath };
   }
 
+  // Read file - "read file notes.txt in Documents"
   if (input.match(/^read\s+file\s+(.+)/)) {
-    const filePath = input.match(/^read file (.+)/)[1];
+    const rawPath = input.match(/^read file (.+)/)[1];
+    const filePath = parseFilePath(rawPath);
     return { type: "read_file", path: filePath };
   }
 
+  // Delete file - "delete file old.txt in Downloads"
   if (input.match(/^delete\s+file\s+(.+)/)) {
-    const filePath = input.match(/^delete file (.+)/)[1];
+    const rawPath = input.match(/^delete file (.+)/)[1];
+    const filePath = parseFilePath(rawPath);
     return { type: "delete_file", path: filePath };
   }
 
@@ -171,6 +194,16 @@ function parseFastCommand(text) {
   if (input.match(/^(?:kill|stop)\s+(?:process\s+)?(.+)/)) {
     const processName = input.match(/^(?:kill|stop)\s+(?:process\s+)?(.+)/)[1];
     return { type: "kill_process", name: processName };
+  }
+
+  // Minimize window
+  if (input.match(/^minimize\s+(.+)/)) {
+      return { type: "minimize_window", title: input.match(/^minimize (.+)/)[1] };
+  }
+
+  // Close window
+  if (input.match(/^close\s+(.+)/)) {
+      return { type: "close_window", title: input.match(/^close (.+)/)[1] };
   }
 
   // System info

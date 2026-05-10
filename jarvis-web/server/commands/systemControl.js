@@ -33,40 +33,38 @@ async function runPowerShell(script, requiresAdmin = false) {
 
 // ============ FILE OPERATIONS ============
 
+function resolvePath(inputPath) {
+  let cleanPath = inputPath.replace(/^["']|["']$/g, '');
+  
+  // If no drive letter and no leading slash, treat as relative to home
+  if (!cleanPath.match(/^[a-zA-Z]:/) && !cleanPath.startsWith('/') && !cleanPath.startsWith('\\')) {
+    cleanPath = path.join(os.homedir(), cleanPath);
+  }
+  
+  return path.resolve(cleanPath);
+}
+
 async function listDirectory({ path: dirPath }) {
   try {
-    let cleanPath = dirPath.replace(/^["']|["']$/g, '');
-    
-    // Handle relative paths like "Documents" - resolve to user's actual folder
-    if (!cleanPath.includes(':') && !cleanPath.startsWith('/') && !cleanPath.startsWith('\\')) {
-      // This is a relative path like "Documents" or "Downloads"
-      cleanPath = path.join(os.homedir(), cleanPath);
-    }
-    
-    const fullPath = path.resolve(cleanPath);
-    
-    const { stdout } = await execPromise(`cmd /c dir "${fullPath}" /b 2>nul`);
-    
-    if (stdout && stdout.trim()) {
-      const files = stdout.trim().split('\r\n').slice(0, 20);
-      return { 
-        success: true, 
-        speech: `Found ${files.length} items in ${dirPath}` 
-      };
-    }
-    return { success: false, speech: `No files found in ${dirPath}` };
-    
+    const fullPath = resolvePath(dirPath);
+    const files = await fs.readdir(fullPath);
+    const fileList = files.slice(0, 20).join(', ');
+    return { 
+      success: true, 
+      speech: `Found ${files.length} items in ${dirPath}: ${fileList}` 
+    };
   } catch (error) {
-    logger.error(`List directory error: ${error.message}`);
     return { success: false, speech: `Could not read directory: ${dirPath}` };
   }
 }
 
 async function createFile({ path: filePath, content = "" }) {
   try {
-    const resolvedPath = path.resolve(filePath);
-    await fs.writeFile(resolvedPath, content);
-    return { success: true, speech: `Created file ${filePath}` };
+    const fullPath = resolvePath(filePath);
+    // Create parent directories if needed
+    await fs.mkdir(path.dirname(fullPath), { recursive: true });
+    await fs.writeFile(fullPath, content);
+    return { success: true, speech: `Created file at ${fullPath}` };
   } catch (error) {
     return { success: false, speech: `Failed to create file: ${error.message}` };
   }
@@ -74,24 +72,24 @@ async function createFile({ path: filePath, content = "" }) {
 
 async function readFile({ path: filePath }) {
   try {
-    const resolvedPath = path.resolve(filePath);
-    const content = await fs.readFile(resolvedPath, "utf-8");
-    return { success: true, speech: `Read file ${filePath}`, data: content };
+    const fullPath = resolvePath(filePath);
+    const content = await fs.readFile(fullPath, "utf-8");
+    const preview = content.substring(0, 200) + (content.length > 200 ? '...' : '');
+    return { success: true, speech: `File contents: ${preview}` };
   } catch (error) {
     return { success: false, speech: `Failed to read file: ${error.message}` };
   }
 }
 
 async function deleteFile({ path: filePath }) {
-  // Extra safety check
-  if (filePath.includes("system32") || filePath.includes("windows")) {
+  if (filePath.toLowerCase().includes("system32") || filePath.toLowerCase().includes("windows")) {
     return { success: false, speech: "I cannot delete system files for security reasons." };
   }
   
   try {
-    const resolvedPath = path.resolve(filePath);
-    await fs.unlink(resolvedPath);
-    return { success: true, speech: `Deleted file ${filePath}` };
+    const fullPath = resolvePath(filePath);
+    await fs.unlink(fullPath);
+    return { success: true, speech: `Deleted file ${fullPath}` };
   } catch (error) {
     return { success: false, speech: `Failed to delete file: ${error.message}` };
   }
@@ -101,9 +99,22 @@ async function deleteFile({ path: filePath }) {
 
 async function listProcesses() {
   try {
-    const { stdout } = await execPromise(`tasklist /fo csv /nh | findstr /v "cmd.exe" | findstr /v "explorer.exe"`);
-    const processes = stdout.trim().split('\n').slice(0, 10);
-    return { success: true, speech: `Found ${processes.length} processes running` };
+    const { stdout } = await execPromise(`tasklist /fo csv /nh`);
+    const lines = stdout.trim().split('\n').filter(l => l.trim());
+    
+    const processes = lines.map(line => {
+      const parts = line.replace(/"/g, '').split(',');
+      return {
+        name: parts[0]?.trim(),
+        pid: parts[1]?.trim(),
+        memory: parts[4]?.trim() + ' K'
+      };
+    }).filter(p => p.name && !['cmd.exe', 'explorer.exe', 'svchost.exe'].includes(p.name.toLowerCase()));
+    
+    const topProcesses = processes.slice(0, 15);
+    const list = topProcesses.map(p => `${p.name} (${p.memory})`).join(', ');
+    
+    return { success: true, speech: `${processes.length} processes running. Top memory users: ${list}` };
   } catch (error) {
     return { success: false, speech: "Could not list processes" };
   }
@@ -159,14 +170,31 @@ async function getSystemInfo() {
 }
 
 async function getDiskSpace() {
-  const result = await runPowerShell(`
-    Get-PSDrive -PSProvider FileSystem | Select-Object Name, @{Name="Free(GB)";Expression={[math]::Round($_.Free/1GB,2)}}, @{Name="Used(GB)";Expression={[math]::Round($_.Used/1GB,2)}}, @{Name="Total(GB)";Expression={[math]::Round(($_.Free+$_.Used)/1GB,2)}}
-  `);
-  
-  if (result.success) {
-    return { success: true, speech: "Disk information retrieved", data: result.output };
+  try {
+    const { stdout } = await execPromise(`powershell -Command "Get-PSDrive -PSProvider FileSystem | Where-Object {$_.Used -gt 0} | ForEach-Object { Write-Output ($_.Name + ',' + [math]::Round($_.Free/1GB,1) + ',' + [math]::Round(($_.Used+$_.Free)/1GB,1) + ',' + [math]::Round(($_.Free/($_.Used+$_.Free))*100,0)) }"`);
+    
+    const lines = stdout.trim().split('\n').filter(l => l.trim() && l.includes(','));
+    
+    if (lines.length === 0) {
+      return { success: false, speech: "No drives found" };
+    }
+    
+    let speech = "";
+    for (const line of lines) {
+      const parts = line.split(',');
+      if (parts.length >= 4) {
+        const drive = parts[0];
+        const freeGB = parts[1];
+        const totalGB = parts[2];
+        const percentFree = parts[3];
+        speech += `${drive} drive: ${freeGB}GB free of ${totalGB}GB (${percentFree}% free). `;
+      }
+    }
+    
+    return { success: true, speech: speech.trim() };
+  } catch (error) {
+    return { success: false, speech: "Could not get disk information" };
   }
-  return { success: false, speech: "Could not get disk information" };
 }
 
 // ============ WINDOWS MANAGEMENT ============
@@ -298,20 +326,19 @@ async function unmuteVolume() {
 async function takeScreenshot({ savePath }) {
   try {
     if (!savePath) {
-      savePath = path.join(os.homedir(), "Desktop", `screenshot_${Date.now()}.png`);
+      savePath = `C:\\Users\\parsa\\Pictures\\screenshot_${Date.now()}.png`;
     }
     
-    const nircmdCmd = `.\\nircmd.exe`;
+    // Ensure directory exists
+    const dir = path.dirname(savePath);
+    await fs.mkdir(dir, { recursive: true });
     
-    // Use nircmd to take screenshot (most reliable)
+    const nircmdCmd = `.\\nircmd.exe`;
     await execPromise(`${nircmdCmd} savescreenshot "${savePath}"`);
     
-    logger.log(`Screenshot saved: ${savePath}`);
-    return { success: true, speech: `Screenshot saved to your Desktop` };
+    return { success: true, speech: `Screenshot saved to Pictures folder` };
     
   } catch (error) {
-    logger.error(`Screenshot error: ${error.message}`);
-    
     // Fallback to PowerShell
     try {
       const psScript = `
@@ -326,7 +353,7 @@ async function takeScreenshot({ savePath }) {
         $bitmap.Dispose()
       `;
       await execPromise(`powershell -Command "${psScript.replace(/"/g, '\\"')}"`);
-      return { success: true, speech: `Screenshot saved to your Desktop` };
+      return { success: true, speech: `Screenshot saved to Pictures folder` };
     } catch (err) {
       return { success: false, speech: "Failed to take screenshot" };
     }
