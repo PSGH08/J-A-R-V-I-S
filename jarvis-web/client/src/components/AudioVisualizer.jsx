@@ -4,7 +4,12 @@ export default function AudioVisualizer({ isSpeaking }) {
   const [bars, setBars] = useState([]);
   const animationRef = useRef(null);
   const isActiveRef = useRef(false);
-  const lastUpdateRef = useRef(Date.now());
+  const isSpeakingRef = useRef(isSpeaking);
+  
+  // Keep ref in sync with prop
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
   
   const BAR_COUNT = 64;
   
@@ -12,14 +17,12 @@ export default function AudioVisualizer({ isSpeaking }) {
     if (!isActiveRef.current) return;
     
     const now = Date.now();
-    lastUpdateRef.current = now;
+    const speaking = isSpeakingRef.current; // Read from ref, not closure
     
-    if (isSpeaking) {
+    if (speaking) {
       setBars(
         Array.from({ length: BAR_COUNT }, (_, i) => {
           const position = i / BAR_COUNT;
-          
-          // Simulate frequency bands
           const lowFreq = Math.sin(now * 0.008 + position * 2) * 0.35 + 0.45;
           const midFreq = Math.sin(now * 0.015 + position * 5) * 0.3 + 0.4;
           const highFreq = Math.sin(now * 0.022 + position * 8) * 0.25 + 0.3;
@@ -51,14 +54,11 @@ export default function AudioVisualizer({ isSpeaking }) {
       );
     }
     
-    setTimeout(() => {
-      animationRef.current = requestAnimationFrame(animate);
-    }, 33);
-  }, [isSpeaking]);
+    animationRef.current = requestAnimationFrame(animate);
+  }, []); // Empty dependency - never recreates the function
   
   useEffect(() => {
     isActiveRef.current = true;
-    lastUpdateRef.current = Date.now();
     animationRef.current = requestAnimationFrame(animate);
     
     return () => {
@@ -74,22 +74,17 @@ export default function AudioVisualizer({ isSpeaking }) {
       {bars.map((bar, i) => (
         <div
           key={i}
-          className="flex-1 mx-px rounded-t-sm transition-all"
+          className="flex-1 mx-px rounded-t-sm"
           style={{
             height: `${bar.height * 100}%`,
-            background: isSpeaking
-              ? `linear-gradient(to top, 
-                  rgba(56,189,248,0.3) 0%, 
-                  rgba(56,189,248,0.7) 40%, 
-                  rgba(56,189,248,1) 100%)`
+            background: isSpeakingRef.current
+              ? "linear-gradient(to top, rgba(56,189,248,0.3) 0%, rgba(56,189,248,0.7) 40%, rgba(56,189,248,1) 100%)"
               : "linear-gradient(to top, rgba(56,189,248,0.05), rgba(56,189,248,0.15))",
-            boxShadow: isSpeaking
+            boxShadow: isSpeakingRef.current
               ? `0 0 ${Math.max(2, bar.height * 8)}px rgba(56,189,248,0.5)`
               : "none",
             minHeight: "1px",
             maxWidth: "3px",
-            transitionDuration: "0.08s",
-            transitionTimingFunction: "ease-out",
           }}
         />
       ))}
