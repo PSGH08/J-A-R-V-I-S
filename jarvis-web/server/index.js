@@ -7,6 +7,7 @@ const { parseFastCommand } = require("./core/fastCommands");
 const { queryOllama } = require("./ai/ollamaClient");
 const { SYSTEM_PROMPT } = require("./core/schema");
 const { routeCommand } = require("./core/commandRouter");
+const { startReminderChecker } = require("./commands/reminders");
 
 const app = express();
 
