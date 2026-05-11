@@ -1,0 +1,13 @@
+# Browser profile data
+.browser-profile/
+
+# AI models (large files)
+server/ai/
+
+# NirCmd files
+server/NirCmd.chm
+server/nircmd.exe
+server/nircmdc.exe
+
+# Node
+node_modules/
