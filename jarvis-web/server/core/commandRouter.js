@@ -3,6 +3,9 @@ const { openApp } = require("../commands/appControl");
 const { runBrowserAutomation } = require("../commands/browser");
 const systemControl = require("../commands/systemControl");
 const { getTodaySchedule, getDaySchedule, getNextActivity } = require("../commands/schedule");
+const { addNote, listNotes, deleteNote, clearNotes } = require("../commands/notes");
+const { addReminder, listReminders, startReminderChecker } = require("../commands/reminders");
+const { translate, localTranslate } = require("../commands/translate");
 
 async function routeCommand(command, socket) {
   let result = { speech: "Command executed." };
@@ -80,6 +83,53 @@ async function routeCommand(command, socket) {
       const persianFormatted = `${translatedWeekday}, ${englishDay} ${translatedMonth} ${englishYear}`;
       
       result = { speech: `Gregorian: ${englishDate}. Persian: ${persianFormatted}.` };
+      break;
+
+    case "add_note":
+      const noteResult = await addNote(command.text);
+      result = { speech: noteResult.speech };
+      break;
+      
+    case "list_notes":
+      const notesList = await listNotes();
+      result = { speech: notesList.speech };
+      break;
+      
+    case "delete_note":
+      const deleteResult = await deleteNote(command.index);
+      result = { speech: deleteResult.speech };
+      break;
+      
+    case "clear_notes":
+      const clearResult = await clearNotes();
+      result = { speech: clearResult.speech };
+      break;
+      
+    case "add_reminder":
+      const reminderResult = await addReminder(command.text, socket);
+      result = { speech: reminderResult.speech };
+      break;
+      
+    case "list_reminders":
+      const remindersList = await listReminders();
+      result = { speech: remindersList.speech };
+      break;
+      
+    case "translate":
+      // Try online first, fall back to local dictionary
+      const onlineResult = await translate(command.text, command.language === 'farsi' ? 'fa' : command.language === 'persian' ? 'fa' : 'es');
+      if (onlineResult.success) {
+        const langName = command.language === 'spanish' ? 'Spanish' : 'Persian';
+        result = { speech: `In ${langName}: ${onlineResult.translated}` };
+      } else {
+        const localResult = localTranslate(command.text, command.language === 'farsi' || command.language === 'persian' ? 'fa' : 'es');
+        if (localResult) {
+          const langName = command.language === 'spanish' ? 'Spanish' : 'Persian';
+          result = { speech: `In ${langName}: ${localResult}` };
+        } else {
+          result = { speech: "I couldn't translate that. Try a simpler phrase." };
+        }
+      }
       break;
 
     case "timer":

@@ -297,6 +297,54 @@ function parseFastCommand(text) {
   }
 
   // ============================================
+  // NOTES COMMANDS
+  // ============================================
+  
+  if (input.match(/^(?:take a note|add note|note|remember)\s+(.+)/)) {
+    const noteText = input.match(/^(?:take a note|add note|note|remember)\s+(.+)/)[1];
+    return { type: "add_note", text: noteText };
+  }
+  
+  if (input.includes("list notes") || input.includes("my notes") || input.includes("show notes") || input.includes("read notes")) {
+    return { type: "list_notes" };
+  }
+  
+  if (input.match(/^delete note\s+(\d+)/)) {
+    const index = input.match(/^delete note (\d+)/)[1];
+    return { type: "delete_note", index };
+  }
+  
+  if (input.includes("clear notes") || input.includes("delete all notes")) {
+    return { type: "clear_notes" };
+  }
+
+  // ============================================
+  // REMINDER COMMANDS
+  // ============================================
+  
+  if (input.includes("remind me") || input.includes("set a reminder")) {
+    return { type: "add_reminder", text: input };
+  }
+  
+  if (input.includes("my reminders") || input.includes("list reminders") || input.includes("pending reminders")) {
+    return { type: "list_reminders" };
+  }
+
+  // ============================================
+  // TRANSLATION COMMANDS
+  // ============================================
+  
+  const translateMatch = input.match(/translate\s+(.+)\s+to\s+(persian|farsi|spanish)/i);
+  if (translateMatch) {
+    return { type: "translate", text: translateMatch[1], language: translateMatch[2].toLowerCase() };
+  }
+  
+  const howToSayMatch = input.match(/how (?:do|to) say\s+(.+)\s+in\s+(persian|farsi|spanish)/i);
+  if (howToSayMatch) {
+    return { type: "translate", text: howToSayMatch[1], language: howToSayMatch[2].toLowerCase() };
+  }
+
+  // ============================================
   // PRIORITY 4: Time & Timer Commands
   // ============================================
   
