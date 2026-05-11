@@ -2,6 +2,7 @@ const { runTimer, checkTimer, cancelTimer, getActiveTimers } = require("../comma
 const { openApp } = require("../commands/appControl");
 const { runBrowserAutomation } = require("../commands/browser");
 const systemControl = require("../commands/systemControl");
+const { getTodaySchedule, getDaySchedule, getNextActivity } = require("../commands/schedule");
 
 async function routeCommand(command, socket) {
   let result = { speech: "Command executed." };
@@ -11,6 +12,21 @@ async function routeCommand(command, socket) {
     case "wake_word":
     result = { speech: command.text };
     break;
+
+    case "get_schedule":
+      const scheduleResult = await getTodaySchedule();
+      result = { speech: scheduleResult.speech };
+      break;
+      
+    case "next_activity":
+      const nextResult = await getNextActivity();
+      result = { speech: nextResult.speech };
+      break;
+      
+    case "get_day_schedule":
+      const dayResult = await getDaySchedule(command.day);
+      result = { speech: dayResult.speech };
+      break;
     
     case "time":
       const now = new Date();
@@ -20,6 +36,50 @@ async function routeCommand(command, socket) {
         hour12: true 
       });
       result = { speech: `It's ${timeString}` };
+      break;
+
+    case "get_date":
+      const todayDate = new Date();
+      
+      // American/English date
+      const englishDate = todayDate.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      // Persian/Shamsi date — get individual parts
+      const persianWeekday = todayDate.toLocaleDateString('fa-IR', { weekday: 'long' });
+      const persianDay = todayDate.toLocaleDateString('fa-IR', { day: 'numeric' });
+      const persianMonth = todayDate.toLocaleDateString('fa-IR', { month: 'long' });
+      const persianYear = todayDate.toLocaleDateString('fa-IR', { year: 'numeric' });
+      
+      // Convert Persian/Arabic digits to English
+      const toEnglishDigits = (str) => str.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+      
+      // Persian month names in English
+      const persianMonths = {
+        'فروردین': 'Farvardin', 'اردیبهشت': 'Ordibehesht', 'خرداد': 'Khordad',
+        'تیر': 'Tir', 'مرداد': 'Mordad', 'شهریور': 'Shahrivar',
+        'مهر': 'Mehr', 'آبان': 'Aban', 'آذر': 'Azar',
+        'دی': 'Dey', 'بهمن': 'Bahman', 'اسفند': 'Esfand'
+      };
+      
+      // Persian weekday names in English
+      const persianDays = {
+        'شنبه': 'Shanbeh', 'یکشنبه': 'Yekshanbeh', 'دوشنبه': 'Doshanbeh',
+        'سه\u200cشنبه': 'Seshanbeh', 'چهارشنبه': 'Chaharshanbeh', 'پنجشنبه': 'Panjshanbeh', 'جمعه': 'Jomeh'
+      };
+      
+      const translatedWeekday = persianDays[persianWeekday] || persianWeekday;
+      const translatedMonth = persianMonths[persianMonth] || persianMonth;
+      const englishDay = toEnglishDigits(persianDay);
+      const englishYear = toEnglishDigits(persianYear);
+      
+      const persianFormatted = `${translatedWeekday}, ${englishDay} ${translatedMonth} ${englishYear}`;
+      
+      result = { speech: `Gregorian: ${englishDate}. Persian: ${persianFormatted}.` };
       break;
 
     case "timer":

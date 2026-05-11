@@ -1,0 +1,300 @@
+{
+  "Saturday": [
+    {
+      "time": "9:30",
+      "activity": "School starts"
+    },
+    {
+      "time": "14:00",
+      "activity": "School ends. Free time and lunch"
+    },
+    {
+      "time": "15:00",
+      "activity": "First study session"
+    },
+    {
+      "time": "16:10",
+      "activity": "Break"
+    },
+    {
+      "time": "16:30",
+      "activity": "Second study session"
+    },
+    {
+      "time": "17:40",
+      "activity": "Break"
+    },
+    {
+      "time": "18:00",
+      "activity": "Third study session"
+    },
+    {
+      "time": "19:10",
+      "activity": "Break"
+    },
+    {
+      "time": "19:20",
+      "activity": "Fourth study session"
+    },
+    {
+      "time": "20:30",
+      "activity": "Free time, exercise, and dinner"
+    },
+    {
+      "time": "22:00",
+      "activity": "Sleep time. Phone off"
+    }
+  ],
+  "Sunday": [
+    {
+      "time": "9:30",
+      "activity": "School starts"
+    },
+    {
+      "time": "14:00",
+      "activity": "School ends. Free time and lunch"
+    },
+    {
+      "time": "15:00",
+      "activity": "First study session"
+    },
+    {
+      "time": "16:10",
+      "activity": "Break"
+    },
+    {
+      "time": "16:30",
+      "activity": "Second study session"
+    },
+    {
+      "time": "17:40",
+      "activity": "Break"
+    },
+    {
+      "time": "18:00",
+      "activity": "Third study session"
+    },
+    {
+      "time": "19:10",
+      "activity": "Break"
+    },
+    {
+      "time": "19:20",
+      "activity": "Fourth study session"
+    },
+    {
+      "time": "20:30",
+      "activity": "Free time and dinner"
+    },
+    {
+      "time": "22:00",
+      "activity": "Sleep time. Phone off"
+    }
+  ],
+  "Monday": [
+    {
+      "time": "8:30",
+      "activity": "School starts"
+    },
+    {
+      "time": "14:00",
+      "activity": "School ends. Free time and lunch"
+    },
+    {
+      "time": "15:00",
+      "activity": "First study session"
+    },
+    {
+      "time": "16:10",
+      "activity": "Break"
+    },
+    {
+      "time": "16:30",
+      "activity": "Second study session"
+    },
+    {
+      "time": "17:40",
+      "activity": "Break"
+    },
+    {
+      "time": "18:00",
+      "activity": "Third study session"
+    },
+    {
+      "time": "19:10",
+      "activity": "Break"
+    },
+    {
+      "time": "19:20",
+      "activity": "Fourth study session"
+    },
+    {
+      "time": "20:30",
+      "activity": "Free time, exercise, and dinner"
+    },
+    {
+      "time": "22:00",
+      "activity": "Sleep time. Phone off"
+    }
+  ],
+  "Tuesday": [
+    {
+      "time": "9:30",
+      "activity": "School starts"
+    },
+    {
+      "time": "15:20",
+      "activity": "School ends. Free time and lunch"
+    },
+    {
+      "time": "16:00",
+      "activity": "First study session"
+    },
+    {
+      "time": "16:50",
+      "activity": "Break"
+    },
+    {
+      "time": "17:10",
+      "activity": "Second study session"
+    },
+    {
+      "time": "18:00",
+      "activity": "Break"
+    },
+    {
+      "time": "18:20",
+      "activity": "Third study session"
+    },
+    {
+      "time": "19:30",
+      "activity": "Break"
+    },
+    {
+      "time": "20:00",
+      "activity": "Fourth study session"
+    },
+    {
+      "time": "21:10",
+      "activity": "Free time, exercise, and dinner"
+    },
+    {
+      "time": "23:00",
+      "activity": "Sleep time. Phone off"
+    }
+  ],
+  "Wednesday": [
+    {
+      "time": "9:30",
+      "activity": "School starts"
+    },
+    {
+      "time": "15:20",
+      "activity": "School ends. Free time and lunch"
+    },
+    {
+      "time": "16:00",
+      "activity": "First study session"
+    },
+    {
+      "time": "16:50",
+      "activity": "Break"
+    },
+    {
+      "time": "17:10",
+      "activity": "Second study session"
+    },
+    {
+      "time": "18:00",
+      "activity": "Break"
+    },
+    {
+      "time": "18:20",
+      "activity": "Third study session"
+    },
+    {
+      "time": "19:10",
+      "activity": "Break"
+    },
+    {
+      "time": "19:30",
+      "activity": "Fourth study session"
+    },
+    {
+      "time": "20:20",
+      "activity": "Free time, exercise, and dinner"
+    },
+    {
+      "time": "22:00",
+      "activity": "Sleep time. Phone off"
+    }
+  ],
+  "Thursday": [
+    {
+      "time": "12:00",
+      "activity": "First exam"
+    },
+    {
+      "time": "13:00",
+      "activity": "Lunch and rest"
+    },
+    {
+      "time": "14:00",
+      "activity": "Second exam"
+    },
+    {
+      "time": "15:30",
+      "activity": "Break"
+    },
+    {
+      "time": "16:00",
+      "activity": "Review both exams"
+    },
+    {
+      "time": "17:30",
+      "activity": "Free time"
+    },
+    {
+      "time": "22:00",
+      "activity": "Sleep"
+    }
+  ],
+  "Friday": [
+    {
+      "time": "12:00",
+      "activity": "First exam"
+    },
+    {
+      "time": "13:20",
+      "activity": "Lunch and rest"
+    },
+    {
+      "time": "14:00",
+      "activity": "Review first exam"
+    },
+    {
+      "time": "15:00",
+      "activity": "Break"
+    },
+    {
+      "time": "16:00",
+      "activity": "Second exam"
+    },
+    {
+      "time": "19:00",
+      "activity": "Break"
+    },
+    {
+      "time": "20:00",
+      "activity": "Review second exam"
+    },
+    {
+      "time": "21:30",
+      "activity": "Free time"
+    },
+    {
+      "time": "22:00",
+      "activity": "Sleep"
+    }
+  ]
+}

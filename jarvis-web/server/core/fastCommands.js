@@ -277,11 +277,36 @@ function parseFastCommand(text) {
   }
 
   // ============================================
+  // SCHEDULE COMMANDS
+  // ============================================
+  
+  // Today's schedule
+  if (input.includes("what's my schedule") || input.includes("my schedule") || input.includes("schedule today") || input.includes("what do i have today")) {
+    return { type: "get_schedule" };
+  }
+  
+  // Next activity
+  if (input.includes("what's next") || input.includes("next activity") || input.includes("what do i have next") || input.includes("upcoming")) {
+    return { type: "next_activity" };
+  }
+  
+  // Specific day
+  const dayMatch = input.match(/(?:schedule for|what's on|what do i have on)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+  if (dayMatch) {
+    return { type: "get_day_schedule", day: dayMatch[1] };
+  }
+
+  // ============================================
   // PRIORITY 4: Time & Timer Commands
   // ============================================
   
   if (input.includes("what time") || input === "time" || input.includes("current time")) {
     return { type: "time" };
+  }
+
+  // Date command
+  if (input.includes("what's the date") || input.includes("what date") || input === "date" || input.includes("today's date")) {
+    return { type: "get_date" };
   }
 
   // Check timer status
