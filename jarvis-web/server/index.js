@@ -36,6 +36,8 @@ app.use(express.json());
 
 io.on("connection", (socket) => {
 
+  startReminderChecker(socket);
+
   console.log("Client connected:", socket.id);
 
   socket.on("disconnect", () => {
@@ -240,9 +242,4 @@ io.on("connection", (socket) => {
 
 server.listen(3001, () => {
   console.log("Server running on port 3001");
-  
-  // Start reminder checker (pass first socket when connected)
-  io.on("connection", (socket) => {
-    startReminderChecker(socket);
-  });
 });
