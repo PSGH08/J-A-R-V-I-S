@@ -10,6 +10,11 @@ function parseFastCommand(text) {
     'jarvis talk to me', 'jarvis i need you', 'jarvis come online',
     'jarvis report in', 'jarvis i\'m back', 'jarvis good to go'
   ];
+
+  // Lock Jarvis - require wake word again
+  if (input.includes("lock jarvis") || input.includes("lock yourself") || input.includes("go to sleep") || input.includes("standby")) {
+    return { type: "lock_jarvis" };
+  }
   
   if (wakeWords.includes(input) || input === 'jarvis') {
     const hour = new Date().getHours();

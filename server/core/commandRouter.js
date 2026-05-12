@@ -13,8 +13,16 @@ async function routeCommand(command, socket) {
   switch (command.type) {
 
     case "wake_word":
-    result = { speech: command.text };
-    break;
+      result = { speech: command.text };
+      break;
+
+    case "lock_jarvis":
+      result = { speech: "Locked, sir. Say Jarvis when you need me again." };
+      // Also need to reset the wake word - emit to socket
+      if (socket) {
+        socket.emit("resetWakeWord");
+      }
+      break;
 
     case "get_schedule":
       const scheduleResult = await getTodaySchedule();

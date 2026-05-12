@@ -94,6 +94,12 @@ io.on("connection", (socket) => {
 
         console.log("Executing fast command...");
 
+      // Handle lock command directly
+      if (fastCommand.type === "lock_jarvis") {
+        wakeWordActive = false;
+        console.log("Wake word reset via lock command");
+      }
+
         // PASS THE SOCKET HERE
         const result = await routeCommand(fastCommand, socket);
 
