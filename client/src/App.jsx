@@ -10,36 +10,7 @@ function AnimatedBackground({ state }) {
   
   return (
     <div className="absolute inset-0 overflow-hidden">
-      <motion.div 
-        animate={{ 
-          rotate: 360, 
-          scale: !isIdle ? [1, 1.2, 1] : [1, 1.05, 1],
-          opacity: !isIdle ? 0.15 : 0.08
-        }} 
-        transition={{ duration: 30, repeat: Infinity, ease: "linear" }} 
-        className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full" 
-        style={{ 
-          background: !isIdle 
-            ? "radial-gradient(circle, rgba(249,115,22,0.4) 0%, transparent 70%)"
-            : "radial-gradient(circle, rgba(59,130,246,0.4) 0%, transparent 70%)",
-          filter: "blur(60px)" 
-        }} 
-      />
-      <motion.div 
-        animate={{ 
-          rotate: -360, 
-          scale: !isIdle ? [1, 1.3, 1] : [1, 1.08, 1],
-          opacity: !isIdle ? 0.12 : 0.06
-        }} 
-        transition={{ duration: 25, repeat: Infinity, ease: "linear" }} 
-        className="absolute bottom-1/3 right-1/3 w-[400px] h-[400px] rounded-full" 
-        style={{ 
-          background: !isIdle 
-            ? "radial-gradient(circle, rgba(251,146,60,0.4) 0%, transparent 70%)"
-            : "radial-gradient(circle, rgba(96,165,250,0.4) 0%, transparent 70%)",
-          filter: "blur(60px)" 
-        }} 
-      />
+      {/* Floating particles */}
       {Array.from({ length: !isIdle ? 60 : 30 }).map((_, i) => (
         <motion.div 
           key={i} 
@@ -48,8 +19,8 @@ function AnimatedBackground({ state }) {
             width: `${1 + Math.random() * 3}px`, 
             height: `${1 + Math.random() * 3}px`, 
             background: !isIdle 
-              ? (Math.random() > 0.5 ? "rgba(251,146,60,0.6)" : "rgba(253,186,116,0.4)")
-              : (Math.random() > 0.5 ? "rgba(96,165,250,0.6)" : "rgba(147,197,253,0.4)"),
+              ? (Math.random() > 0.5 ? "rgba(251,146,60,0.85)" : "rgba(253,186,116,0.65)")
+              : (Math.random() > 0.5 ? "rgba(96,165,250,0.85)" : "rgba(147,197,253,0.65)"),
             left: `${Math.random() * 100}%`, 
             top: `${Math.random() * 100}%` 
           }} 
@@ -66,6 +37,7 @@ function AnimatedBackground({ state }) {
           }} 
         />
       ))}
+      
       <div 
         className="absolute inset-0 opacity-[0.015]" 
         style={{ 
@@ -98,12 +70,13 @@ export default function App() {
   useEffect(() => { 
     let t; 
     if (!isJarvisSpeaking && !isProcessing && showResponse) {
+      const delay = Math.max(3000, (response?.length || 0) * 50);
       t = setTimeout(() => {
         setShowResponse(false);
-      }, 1000);
+      }, delay);
     }
     return () => clearTimeout(t); 
-  }, [isJarvisSpeaking, isProcessing, showResponse]);
+  }, [isJarvisSpeaking, isProcessing, showResponse, response]);
 
   // Socket setup
   useEffect(() => { 
@@ -208,10 +181,10 @@ export default function App() {
               transition={{ delay: 0.5, duration: 0.8 }}
               className="text-center"
             >
-              <h1 className="text-3xl font-light tracking-[0.3em] text-blue-300/80 mb-2 whitespace-nowrap">
+              <h1 className="text-3xl font-light tracking-[0.3em] text-blue-400/100 mb-2 whitespace-nowrap">
                 J.A.R.V.I.S
               </h1>
-              <p className="text-xs text-blue-400/40 tracking-[0.2em] font-light whitespace-nowrap">
+              <p className="text-xs text-blue-400/100 tracking-[0.2em] font-light whitespace-nowrap">
                 Just A Rather Very Intelligent System
               </p>
             </motion.div>
@@ -229,14 +202,14 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.4 }}
-              className={`px-6 py-3 rounded-full border ${
+              className={`px-6 py-3 rounded-2xl border max-w-lg text-center backdrop-blur-sm ${
                 state === "idle" 
-                  ? "bg-blue-500/5 border-blue-500/10" 
-                  : "bg-orange-500/5 border-orange-500/10"
+                  ? "bg-blue-500/10 border-blue-400/20 text-blue-300/80" 
+                  : "bg-orange-500/10 border-orange-400/20 text-orange-300/80"
               }`}
             >
-              <p className={`text-sm font-light whitespace-nowrap ${
-                state === "idle" ? "text-blue-300/60" : "text-orange-300/60"
+              <p className={`text-sm font-light ${
+                state === "idle" ? "text-blue-300/90" : "text-orange-300/90"
               }`}>
                 {response}
               </p>
@@ -262,21 +235,23 @@ export default function App() {
       </div>
       
       {/* Bottom indicator */}
-      <motion.div
-        animate={{ opacity: [0.5, 0.9, 0.5] }}
-        transition={{ duration: 2, repeat: Infinity }}
-        className="absolute bottom-20 left-1/2 -translate-x-1/2 text-xs tracking-widest whitespace-nowrap"
-      >
-        {state === "idle" ? (
-          <span className="text-blue-400/60">
-            {listening ? "LISTENING FOR WAKE WORD..." : "INITIALIZING..."}
-          </span>
-        ) : (
-          <span className="text-orange-400/50">
-            LISTENING FOR COMMANDS
-          </span>
-        )}
-      </motion.div>
+      {!showResponse && !isProcessing && (
+        <motion.div
+          animate={{ opacity: [0.5, 0.9, 0.5] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="absolute bottom-20 left-1/2 -translate-x-1/2 text-xs tracking-widest whitespace-nowrap"
+        >
+          {state === "idle" ? (
+            <span className="text-blue-400/80">
+              {listening ? "LISTENING FOR WAKE WORD..." : "LISTENING FOR WAKE WORD..."}
+            </span>
+          ) : (
+            <span className="text-orange-400/80">
+              LISTENING FOR COMMANDS
+            </span>
+          )}
+        </motion.div>
+      )}
     </div>
   );
 }

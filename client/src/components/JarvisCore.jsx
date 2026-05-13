@@ -31,7 +31,6 @@ export default function JarvisCore({ state = "idle", size = "large" }) {
 
     const rings = [];
     
-    // Main rings with imperfection
     for (let i = 0; i < 50; i++) {
       const completeness = 0.4 + Math.random() * 0.6;
       const startOffset = Math.random() * Math.PI * 2;
@@ -51,7 +50,6 @@ export default function JarvisCore({ state = "idle", size = "large" }) {
       });
     }
 
-    // Inner denser rings
     for (let i = 0; i < 15; i++) {
       const completeness = 0.5 + Math.random() * 0.5;
       const startOffset = Math.random() * Math.PI * 2;
@@ -71,7 +69,6 @@ export default function JarvisCore({ state = "idle", size = "large" }) {
       });
     }
 
-    // Scattered arc fragments
     for (let i = 0; i < 20; i++) {
       rings.push({
         tiltX: Math.random() * Math.PI,
@@ -122,7 +119,6 @@ export default function JarvisCore({ state = "idle", size = "large" }) {
 
       ctx.clearRect(0, 0, size, size);
 
-      // Draw orbit rings with imperfections
       geometry.rings.forEach((ring) => {
         const segments = ring.segments;
         const scaledRadius = ring.radius * (size / 300);
@@ -171,16 +167,15 @@ export default function JarvisCore({ state = "idle", size = "large" }) {
           ctx.closePath();
         }
         
-        ctx.strokeStyle = `rgba(${color2[0]}, ${color2[1]}, ${color2[2]}, ${ring.opacity * 0.6})`;
-        ctx.lineWidth = ring.lineWidth * 0.5;
+        ctx.strokeStyle = `rgba(${color2[0]}, ${color2[1]}, ${color2[2]}, ${ring.opacity * 0.7})`;
+        ctx.lineWidth = ring.lineWidth * 0.6;
         ctx.stroke();
 
-        ctx.strokeStyle = `rgba(${color1[0]}, ${color1[1]}, ${color1[2]}, ${ring.opacity * 0.15})`;
-        ctx.lineWidth = ring.lineWidth * 1.5;
+        ctx.strokeStyle = `rgba(${color1[0]}, ${color1[1]}, ${color1[2]}, ${ring.opacity * 0.3})`;
+        ctx.lineWidth = ring.lineWidth * 2;
         ctx.stroke();
       });
 
-      // Draw points
       const projectedPoints = geometry.points.map((p) => {
         const scaledRadius = (p.radius + p.drift * Math.sin(t * 2 + p.theta)) * (size / 300);
         const angle = p.theta + t * p.baseSpeed * speedMultiplier;
@@ -205,7 +200,6 @@ export default function JarvisCore({ state = "idle", size = "large" }) {
         };
       });
 
-      // Draw connections
       const maxDist = size * 0.18;
       const maxDistSq = maxDist * maxDist;
       
@@ -219,22 +213,21 @@ export default function JarvisCore({ state = "idle", size = "large" }) {
           
           if (distSq < maxDistSq) {
             const dist = Math.sqrt(distSq);
-            const alpha = (1 - dist / maxDist) * 0.15 * ((p1.brightness + p2.brightness) / 2);
+            const alpha = (1 - dist / maxDist) * 0.25 * ((p1.brightness + p2.brightness) / 2);
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.strokeStyle = `rgba(${color3[0]}, ${color3[1]}, ${color3[2]}, ${alpha})`;
-            ctx.lineWidth = 0.25;
+            ctx.lineWidth = 0.35;
             ctx.stroke();
           }
         }
       }
 
-      // Draw dots
       projectedPoints.forEach((p1) => {
-        const dotRadius = Math.max(0.15, 1.2 * p1.brightness);
-        const glowRadius = Math.max(0.4, 2.5 * p1.brightness);
-        const pointAlpha = Math.max(0, p1.brightness * (speedMultiplier > 1.5 ? 0.85 : 0.45));
+        const dotRadius = Math.max(0.2, 1.5 * p1.brightness);
+        const glowRadius = Math.max(0.5, 3.5 * p1.brightness);
+        const pointAlpha = Math.max(0, p1.brightness * (speedMultiplier > 1.5 ? 0.9 : 0.6));
         
         ctx.beginPath();
         ctx.arc(p1.x, p1.y, dotRadius, 0, Math.PI * 2);
@@ -243,19 +236,18 @@ export default function JarvisCore({ state = "idle", size = "large" }) {
         
         ctx.beginPath();
         ctx.arc(p1.x, p1.y, glowRadius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${color1[0]}, ${color1[1]}, ${color1[2]}, ${pointAlpha * 0.2})`;
+        ctx.fillStyle = `rgba(${color1[0]}, ${color1[1]}, ${color1[2]}, ${pointAlpha * 0.4})`;
         ctx.fill();
       });
 
-      // Subtle core
-      const coreGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.06);
-      coreGradient.addColorStop(0, `rgba(255, 255, 255, 0.6)`);
-      coreGradient.addColorStop(0.2, `rgba(${color3[0]}, ${color3[1]}, ${color3[2]}, 0.4)`);
-      coreGradient.addColorStop(0.6, `rgba(${color1[0]}, ${color1[1]}, ${color1[2]}, 0.15)`);
+      const coreGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.1);
+      coreGradient.addColorStop(0, `rgba(255, 255, 255, 0.9)`);
+      coreGradient.addColorStop(0.15, `rgba(${color3[0]}, ${color3[1]}, ${color3[2]}, 0.7)`);
+      coreGradient.addColorStop(0.5, `rgba(${color1[0]}, ${color1[1]}, ${color1[2]}, 0.3)`);
       coreGradient.addColorStop(1, `rgba(${color1[0]}, ${color1[1]}, ${color1[2]}, 0)`);
       
       ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.06, 0, Math.PI * 2);
+      ctx.arc(cx, cy, size * 0.1, 0, Math.PI * 2);
       ctx.fillStyle = coreGradient;
       ctx.fill();
 
@@ -274,11 +266,11 @@ export default function JarvisCore({ state = "idle", size = "large" }) {
       <motion.div 
         animate={{ 
           scale: isAwake ? [1, 1.15, 1] : [1, 1.05, 1], 
-          opacity: isAwake ? [0.15, 0.4, 0.15] : [0.06, 0.14, 0.06] 
+          opacity: isAwake ? [0.25, 0.55, 0.25] : [0.1, 0.22, 0.1] 
         }} 
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} 
         className="absolute w-full h-full rounded-full blur-3xl"
-        style={{ background: `rgba(${color1[0]}, ${color1[1]}, ${color1[2]}, 0.2)` }}
+        style={{ background: `rgba(${color1[0]}, ${color1[1]}, ${color1[2]}, 0.35)` }}
       />
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
     </div>
