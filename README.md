@@ -1,67 +1,65 @@
 # J.A.R.V.I.S. - Just A Rather Very Intelligent System
 
-A voice-controlled AI assistant with a cinematic 3D holographic interface, inspired by Iron Man's Jarvis. Combines voice recognition, natural language processing, local AI (Ollama), system control, and a stunning real-time 3D canvas core.
+A voice-controlled AI assistant featuring a cinematic holographic interface, inspired by Iron Man's J.A.R.V.I.S. It integrates voice recognition, natural language processing, local AI inference, system control utilities, and a dynamic real-time 3D visualization core.
 
 ---
 
 ## Features
 
-- **Voice Wake Word**: Say "Jarvis" to activate
-- **3D Holographic Core**: Real-time canvas-rendered wireframe sphere with blue (idle) and orange (awake) states
-- **Natural Language AI**: Uses Ollama with local LLMs for conversational responses
-- **Fast Command Parser**: Pattern-matched commands for instant responses (no AI needed)
-- **System Control**: Open apps, manage files, kill processes, take screenshots, control volume
-- **Timer & Reminders**: Set timers and reminders with spoken alerts
-- **Notes**: Add, list, delete, and clear notes
-- **Schedule**: Integration with calendar/schedule data
-- **Translation**: English to Persian and Spanish translation
-- **Browser Automation**: Open websites, search, play Spotify
-- **Text-to-Speech**: Speaks responses aloud with dramatic/personality variations
+- **Voice Wake Word Detection**: Activate the system hands-free by saying "Jarvis."
+- **3D Holographic Core**: A real-time canvas-rendered wireframe sphere that transitions between idle blue and active orange states.
+- **Natural Language Processing**: Leverages Ollama for conversational AI using local large language models.
+- **High-Performance Command Parser**: Executes pattern-matched commands instantly without needing AI processing.
+- **System Operations**: Launch applications, manage files, terminate processes, capture screenshots, and adjust system volume.
+- **Productivity Tools**: Create and manage notes, set timers, and schedule reminders with spoken alerts.
+- **Calendar Integration**: Query daily schedules and upcoming events.
+- **Translation Engine**: Translate text between English, Persian, and Spanish.
+- **Browser Automation**: Open websites, execute web searches, and control media playback.
+- **Text-to-Speech**: Delivers spoken responses with configurable personality and dramatic inflection.
 
 ---
 
-## Tech Stack
+## Technology Stack
 
 ### Frontend (React + Vite)
 | Dependency | Purpose |
 |------------|---------|
-| React 18+ | UI framework |
-| Vite | Build tool |
-| Framer Motion | Animations & transitions |
-| Tailwind CSS | Styling |
-| Socket.io Client | Real-time communication with backend |
-| Web Speech API | Voice recognition |
+| React 18+ | Component-based user interface |
+| Vite | Module bundler and development server |
+| Framer Motion | Declarative animation and gesture library |
+| Tailwind CSS | Utility-first CSS framework |
+| Socket.io Client | Real-time bidirectional communication |
+| Web Speech API | Browser-native speech recognition |
 
 ### Backend (Node.js)
 | Dependency | Purpose |
 |------------|---------|
-| Express | HTTP server |
-| Socket.io | WebSocket communication |
-| Ollama | Local AI/LLM inference |
-| node-cron | Scheduled tasks (reminders) |
-| open | Open URLs/apps in default browser |
-| ps-list | List running processes |
-| systeminformation | System info (CPU, memory, disk) |
-| screenshot-desktop | Take screenshots |
-| loudness | Volume control (Linux) |
-| nircmd | Volume control (Windows) |
-| fs/path | File system operations |
+| Express | HTTP server framework |
+| Socket.io | WebSocket event handling |
+| Ollama | Local AI model inference |
+| node-cron | Scheduled task execution |
+| open | Launch URLs or files in default applications |
+| ps-list | Process enumeration |
+| systeminformation | Hardware and OS metrics |
+| screenshot-desktop | Screen capture utility |
+| loudness | Audio control for Linux systems |
+| nircmd | Audio and system control for Windows |
+| fs/path | File system interaction |
 
-### AI Model
-- **Ollama** running locally with models like:
-  - `llama3.2` or `mistral` for conversation
-  - Custom system prompt for Jarvis personality
+### AI Model Configuration
+- **Ollama** runs locally with supported models such as `llama3.2` or `mistral`.
+- A custom system prompt configures the assistant's J.A.R.V.I.S. personality.
 
 ---
 
 ## Prerequisites
 
-1. **Node.js** v18+ installed
-2. **Ollama** installed and running locally
-   - Download from [ollama.com](https://ollama.com)
-   - Pull a model: `ollama pull llama3.2`
-3. **Windows** (primary support) or **Linux**
-4. **Microphone** for voice commands
+1.  **Node.js** version 18 or later.
+2.  **Ollama** installed and active as a local service.
+    - Download from [ollama.com](https://ollama.com)
+    - Pull a model: `ollama pull llama3.2`
+3.  **Operating System**: Windows (primary support) or Linux.
+4.  **Microphone**: Required for voice command input.
 
 ---
 
@@ -69,109 +67,106 @@ A voice-controlled AI assistant with a cinematic 3D holographic interface, inspi
 
 J-A-R-V-I-S/
 ├── server/
-│   ├── index.js              # Main server entry point
-│   ├── ai/
-│   │   └── ollama.js         # Ollama AI integration
-│   ├── commands/
-│   │   ├── appControl.js     # Open/manage applications
-│   │   ├── browser.js        # Browser automation
-│   │   ├── notes.js          # Notes CRUD
-│   │   ├── reminders.js      # Reminder system
-│   │   ├── schedule.js       # Calendar/schedule
-│   │   ├── systemControl.js  # System operations
-│   │   ├── timer.js          # Timer functionality
-│   │   └── translate.js      # Translation
-│   ├── parsers/
-│   │   └── fastParser.js     # Pattern-matching parser
-│   └── utils/
-│       └── speech.js         # Text-to-speech helpers
+│ ├── index.js # Application entry point
+│ ├── ai/
+│ │ └── ollama.js # Ollama client and prompt management
+│ ├── commands/
+│ │ ├── appControl.js # Process and application launcher
+│ │ ├── browser.js # URL opening and web search
+│ │ ├── notes.js # Persistent note storage
+│ │ ├── reminders.js # Reminder scheduling and alerts
+│ │ ├── schedule.js # Calendar data interface
+│ │ ├── systemControl.js # File, volume, and OS operations
+│ │ ├── timer.js # Countdown timer logic
+│ │ └── translate.js # Language translation service
+│ ├── parsers/
+│ │ └── fastParser.js # Regex-based command router
+│ └── utils/
+│ └── speech.js # Text-to-speech configuration
 ├── src/
-│   ├── App.jsx               # Main React app
-│   ├── components/
-│   │   └── JarvisCore.jsx    # 3D holographic core
-│   ├── hooks/
-│   │   └── useVoice.js       # Voice recognition hook
-│   └── services/
-│       ├── socket.js         # Socket.io client
-│       └── speech.js         # Client-side TTS
+│ ├── App.jsx # Root React component
+│ ├── components/
+│ │ └── JarvisCore.jsx # 3D holographic sphere renderer
+│ ├── hooks/
+│ │ └── useVoice.js # Voice recognition custom hook
+│ └── services/
+│ ├── socket.js # Socket.io client singleton
+│ └── speech.js # Client-side speech synthesis
 ├── package.json
 └── README.md
 
 ---
 
-## Commands Reference
+## Command Reference
 
-Wake & Sleep
+### System State
+| Command | Description |
+|---------|-------------|
+| "Jarvis" | Wake word to activate from idle. |
+| "Go to sleep" / "Lock" | Return to idle monitoring state. |
 
-Command	Description
-"Jarvis"	Wake word (activates from idle)
-"Go to sleep" / "Lock"	Returns to idle state
+### Time and Date
+| Command | Description |
+|---------|-------------|
+| "What time is it?" | Announce the current time. |
+| "What's the date?" | Announce Gregorian and Persian/Shamsi dates. |
 
-Time & Date
+### Calendar
+| Command | Description |
+|---------|-------------|
+| "What's my schedule?" | List today's scheduled items. |
+| "What's next?" | Announce the next upcoming event. |
+| "Schedule for [day]" | Query schedule for a specific day. |
 
-Command	Description
-"What time is it?"	Current time
-"What's the date?"	Gregorian + Persian/Shamsi date
+### Notes
+| Command | Description |
+|---------|-------------|
+| "Add note: [text]" | Create a new note entry. |
+| "List notes" | Display all saved notes. |
+| "Delete note [number]" | Remove a specific note by index. |
+| "Clear notes" | Delete all notes. |
 
-Schedule
+### Reminders and Timers
+| Command | Description |
+|---------|-------------|
+| "Remind me to [task] at [time]" | Schedule a reminder. |
+| "List reminders" | Show all pending reminders. |
+| "Set timer for [X] minutes" | Start a countdown. |
+| "Check timer" | Report remaining time. |
+| "Cancel timer" | Stop the active timer. |
 
-Command	Description
-"What's my schedule?"	Today's schedule
-"What's next?"	Next upcoming activity
-"Schedule for Monday"	Any specific day
+### Translation
+| Command | Description |
+|---------|-------------|
+| "Translate [word] to Spanish" | Translate English to Spanish. |
+| "Translate [word] to Persian" | Translate English to Persian. |
 
-Notes
+### Applications and Browser
+| Command | Description |
+|---------|-------------|
+| "Open [application]" | Launch a desktop application. |
+| "Open [website]" / "Go to [url]" | Open a URL in the default browser. |
+| "Search for [query]" | Execute a Google search. |
+| "Open Spotify" | Launch the Spotify client. |
 
-Command	Description
-"Add note: [text]"	Create a note
-"List notes"	Show all notes
-"Delete note [number]"	Remove a note
-"Clear notes"	Delete all notes
+### System Control
+| Command | Description |
+|---------|-------------|
+| "Take screenshot" | Capture and save the current screen. |
+| "Set volume to [X]" | Adjust system volume (0-100). |
+| "Mute" / "Unmute" | Toggle audio output. |
+| "List files" / "Show desktop" | Display directory contents. |
+| "Create file: [name]" | Create a new empty file. |
+| "Read file: [name]" | Output file contents. |
+| "Delete file: [name]" | Permanently remove a file. |
+| "List processes" | Show running programs. |
+| "Kill [process]" / "Close [app]" | Force-terminate a process. |
+| "Run [program]" / "Start [exe]" | Launch an executable. |
+| "System info" | Report CPU, RAM, and OS details. |
+| "Disk space" | Report storage usage. |
+| "Run: [command]" | Execute a raw terminal command. |
 
-Reminders
-
-Command	Description
-"Remind me to [task] at [time]"	Set a reminder
-"List reminders"	Show all reminders
-
-Timer
-
-Command	Description
-"Set timer for [X] minutes"	Start a timer
-"Check timer"	Check remaining time
-"Cancel timer"	Stop the timer
-
-Translation
-
-Command	Description
-"Translate [word] to Spanish"	English → Spanish
-"Translate [word] to Persian"	English → Persian/Farsi
-
-Apps & Browser
-
-Command	Description
-"Open Chrome" / "Open [app]"	Launch any application
-"Open YouTube" / "Go to [site]"	Open website in browser
-"Search for [query]"	Google search
-"Open Spotify"	Launch Spotify
-
-System Control
-
-Command	Description
-"Take screenshot"	Capture screen
-"Set volume to [X]"	Adjust volume (0-100)
-"Mute" / "Unmute"	Toggle audio
-"List files" / "Show desktop"	Directory listing
-"Create file: [name]"	Create empty file
-"Read file: [name]"	Display file contents
-"Delete file: [name]"	Remove a file
-"List processes"	Show running programs
-"Kill Chrome" / "Close [app]"	End a process
-"Start notepad" / "Run [program]"	Launch executable
-"System info"	CPU, RAM, OS details
-"Disk space"	Storage usage
-"Run: [command]"	Execute terminal command
-
-General AI
-Command	Description
-Any question or request	Sent to Ollama AI for response
+### General Intelligence
+| Command | Description |
+|---------|-------------|
+| Any other question or statement | Routed to the Ollama language model for a generative response. |
