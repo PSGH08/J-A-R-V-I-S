@@ -1,49 +1,65 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { socket } from "./services/socket";
 import { speak, speakDramatically, speakWithPersonality, isJarvisSpeaking as checkIsSpeaking } from "./services/speech";
 import { useVoice } from "./hooks/useVoice";
 import JarvisCore from "./components/JarvisCore";
 
-function AnimatedBackground() {
+function AnimatedBackground({ state }) {
+  const isIdle = state === "idle";
+  
   return (
-    <div className="absolute inset-0 overflow-hidden -z-5">
+    <div className="absolute inset-0 overflow-hidden">
       <motion.div 
-        animate={{ rotate: 360, scale: [1, 1.1, 1] }} 
+        animate={{ 
+          rotate: 360, 
+          scale: !isIdle ? [1, 1.2, 1] : [1, 1.05, 1],
+          opacity: !isIdle ? 0.15 : 0.08
+        }} 
         transition={{ duration: 30, repeat: Infinity, ease: "linear" }} 
-        className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full opacity-10" 
+        className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full" 
         style={{ 
-          background: "radial-gradient(circle, rgba(249,115,22,0.4) 0%, transparent 70%)", 
+          background: !isIdle 
+            ? "radial-gradient(circle, rgba(249,115,22,0.4) 0%, transparent 70%)"
+            : "radial-gradient(circle, rgba(59,130,246,0.4) 0%, transparent 70%)",
           filter: "blur(60px)" 
         }} 
       />
       <motion.div 
-        animate={{ rotate: -360, scale: [1, 1.2, 1] }} 
+        animate={{ 
+          rotate: -360, 
+          scale: !isIdle ? [1, 1.3, 1] : [1, 1.08, 1],
+          opacity: !isIdle ? 0.12 : 0.06
+        }} 
         transition={{ duration: 25, repeat: Infinity, ease: "linear" }} 
-        className="absolute bottom-1/3 right-1/3 w-[400px] h-[400px] rounded-full opacity-10" 
+        className="absolute bottom-1/3 right-1/3 w-[400px] h-[400px] rounded-full" 
         style={{ 
-          background: "radial-gradient(circle, rgba(251,146,60,0.4) 0%, transparent 70%)", 
+          background: !isIdle 
+            ? "radial-gradient(circle, rgba(251,146,60,0.4) 0%, transparent 70%)"
+            : "radial-gradient(circle, rgba(96,165,250,0.4) 0%, transparent 70%)",
           filter: "blur(60px)" 
         }} 
       />
-      {Array.from({ length: 40 }).map((_, i) => (
+      {Array.from({ length: !isIdle ? 60 : 30 }).map((_, i) => (
         <motion.div 
           key={i} 
           className="absolute rounded-full" 
           style={{ 
             width: `${1 + Math.random() * 3}px`, 
             height: `${1 + Math.random() * 3}px`, 
-            background: Math.random() > 0.5 ? "rgba(251,146,60,0.6)" : "rgba(253,186,116,0.4)", 
+            background: !isIdle 
+              ? (Math.random() > 0.5 ? "rgba(251,146,60,0.6)" : "rgba(253,186,116,0.4)")
+              : (Math.random() > 0.5 ? "rgba(96,165,250,0.6)" : "rgba(147,197,253,0.4)"),
             left: `${Math.random() * 100}%`, 
             top: `${Math.random() * 100}%` 
           }} 
           animate={{ 
             y: [0, -20 - Math.random() * 40, 0], 
             x: [0, (Math.random() - 0.5) * 20, 0], 
-            opacity: [0, 0.8, 0] 
+            opacity: [0, !isIdle ? 0.9 : 0.6, 0] 
           }} 
           transition={{ 
-            duration: 3 + Math.random() * 4, 
+            duration: !isIdle ? 2 + Math.random() * 3 : 3 + Math.random() * 4, 
             repeat: Infinity, 
             delay: Math.random() * 6, 
             ease: "easeInOut" 
@@ -62,13 +78,13 @@ function AnimatedBackground() {
 }
 
 export default function App() {
-  const [input, setInput] = useState("");
   const [response, setResponse] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasGreeted, setHasGreeted] = useState(false);
   const [isJarvisSpeaking, setIsJarvisSpeaking] = useState(false);
-  const [mode, setMode] = useState("idle");
-  const [wakeWordDetected, setWakeWordDetected] = useState(false);
+  const [state, setState] = useState("idle");
+  const [showResponse, setShowResponse] = useState(false);
+  const [hasBeenAwakened, setHasBeenAwakened] = useState(false);
 
   const { listening, text } = useVoice();
 
@@ -78,18 +94,16 @@ export default function App() {
     return () => clearInterval(i); 
   }, []);
 
-  // Reset to idle after response
+  // Hide response text after speaking finishes
   useEffect(() => { 
     let t; 
-    if (!isJarvisSpeaking && !isProcessing && mode === "responding") { 
-      t = setTimeout(() => { 
-        setMode("idle"); 
-        setResponse(""); 
-        setWakeWordDetected(false);
-      }, Math.max(4000, (response?.length || 0) * 60)); 
-    } 
+    if (!isJarvisSpeaking && !isProcessing && showResponse) {
+      t = setTimeout(() => {
+        setShowResponse(false);
+      }, 1000);
+    }
     return () => clearTimeout(t); 
-  }, [isJarvisSpeaking, isProcessing, mode, response]);
+  }, [isJarvisSpeaking, isProcessing, showResponse]);
 
   // Socket setup
   useEffect(() => { 
@@ -97,13 +111,14 @@ export default function App() {
     return () => delete window.socket; 
   }, []);
 
-  // Handle socket responses
+  // Handle socket responses - ONLY from backend
   useEffect(() => { 
     socket.on("response", async (d) => { 
       if (!d?.text) return; 
       setResponse(d.text); 
-      setIsProcessing(true); 
-      setMode("responding"); 
+      setShowResponse(true);
+      setIsProcessing(true);
+      
       const lt = d.text.toLowerCase(); 
       if (lt.includes("timer finished")) await speak(d.text); 
       else if (lt.includes("error")) { 
@@ -111,37 +126,41 @@ export default function App() {
         await speak(d.text); 
       } else if (d.text.length > 100) await speakDramatically(d.text); 
       else await speak(d.text); 
-      setIsProcessing(false); 
+      
+      setIsProcessing(false);
     }); 
-    return () => socket.off("response"); 
-  }, []);
-  
-  // Send text command
-  function sendTextCommand() { 
-    const c = input.trim(); 
-    if (!c || isProcessing) return; 
-    socket.emit("command", c); 
-    setInput(""); 
-    setMode("active"); 
-    setWakeWordDetected(true);
-  }
 
-  // Handle voice input - only activate on wake word
+    socket.on("sleep", () => {
+      setState("idle");
+      setHasBeenAwakened(false);
+      setShowResponse(false);
+      setResponse("");
+    });
+
+    return () => {
+      socket.off("response");
+      socket.off("sleep");
+    }; 
+  }, []);
+
+  // Handle voice input - SAME LOGIC AS ORIGINAL CODE
   useEffect(() => { 
     if (text && !isProcessing && !isJarvisSpeaking) {
-      // Check if the text contains the wake word "Jarvis" (case insensitive)
       const containsWakeWord = /jarvis/i.test(text);
       
       if (containsWakeWord) {
-        setWakeWordDetected(true);
-        setMode("active");
+        // First wake word - transition to awake
+        if (!hasBeenAwakened) {
+          setHasBeenAwakened(true);
+          setState("awake");
+        }
+        
         // Extract command after wake word if present
         const command = text.replace(/jarvis/i, "").trim();
         if (command) {
           socket.emit("command", command);
         }
       }
-      // If no wake word detected, stay in idle mode
     }
   }, [text, isProcessing, isJarvisSpeaking]);
 
@@ -153,122 +172,108 @@ export default function App() {
       if (h < 12) g = "Good morning. Say Jarvis when you need me."; 
       else if (h < 17) g = "Good afternoon. Say Jarvis when you need me."; 
       setTimeout(() => { 
+        setResponse(g);
+        setShowResponse(true);
         speak(g); 
-        setResponse(g); 
         setHasGreeted(true); 
-        setMode("responding"); 
       }, 1500); 
     } 
   }, [hasGreeted, listening]);
 
   return (
-    <div className="relative min-h-screen w-full bg-[#0a0a0a] text-white overflow-hidden">
-      <AnimatedBackground />
+    <div className="relative min-h-screen w-full bg-[#050505] text-white overflow-hidden">
+      <AnimatedBackground state={state} />
 
-      {/* Idle mode - shows input field */}
-      <AnimatePresence>
-        {mode === "idle" && (
-          <motion.div 
-            key="idle" 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            className="absolute inset-0 z-50"
-          >
-            <div className="absolute top-[15%] left-1/2 -translate-x-1/2 text-center">
-              <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-orange-300 bg-clip-text text-transparent">
-                J.A.R.V.I.S.
+      {/* Core - dead center */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+        <motion.div
+          key={state}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+        >
+          <JarvisCore state={state} size="large" />
+        </motion.div>
+      </div>
+
+      {/* Text area below core */}
+      <div className="absolute top-[calc(50%+160px)] left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">        
+        {/* Title - only in idle */}
+        <AnimatePresence>
+          {state === "idle" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ delay: 0.5, duration: 0.8 }}
+              className="text-center"
+            >
+              <h1 className="text-3xl font-light tracking-[0.3em] text-blue-300/80 mb-2 whitespace-nowrap">
+                J.A.R.V.I.S
               </h1>
-              <p className="text-sm text-orange-400/60 mt-2 tracking-widest">
+              <p className="text-xs text-blue-400/40 tracking-[0.2em] font-light whitespace-nowrap">
                 Just A Rather Very Intelligent System
               </p>
-            </div>
-            <div className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-full max-w-md px-4">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-3 flex gap-2">
-                <input 
-                  value={input} 
-                  onChange={(e) => setInput(e.target.value)} 
-                  onKeyDown={(e) => e.key === "Enter" && sendTextCommand()} 
-                  placeholder="Type a command..." 
-                  className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-zinc-600" 
-                />
-                <button 
-                  onClick={sendTextCommand} 
-                  className="px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-medium hover:bg-orange-400 transition active:scale-95"
-                >
-                  Send
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Active/Responding mode - shows response */}
-      <AnimatePresence>
-        {(mode === "active" || mode === "responding") && (
-          <motion.div 
-            key="active" 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            className="absolute inset-0 flex items-center justify-center z-50 px-6"
-          >
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }} 
-              animate={{ opacity: 1, scale: 1 }} 
-              transition={{ duration: 0.4 }} 
-              className="w-full max-w-3xl rounded-3xl border border-orange-500/10 bg-black/40 backdrop-blur-2xl p-8 min-h-[250px] max-h-[60vh] overflow-y-auto"
-            >
-              <div className="text-xs text-orange-400 mb-4 tracking-widest uppercase">
-                {isProcessing ? "Processing..." : isJarvisSpeaking ? "Speaking..." : "Response"}
-              </div>
-              <div className="text-xl text-white leading-relaxed font-light">
-                {response || (
-                  <span className="text-zinc-500 italic">
-                    {isProcessing ? "Thinking..." : "Listening..."}
-                  </span>
-                )}
-              </div>
-              {isProcessing && !response && (
-                <div className="mt-4 flex gap-2">
-                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
-                </div>
-              )}
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
 
-      {/* Jarvis Core - animates between center and top */}
-      <motion.div 
-        animate={{ 
-          x: mode === "idle" ? 0 : "calc(50vw - 5rem)", 
-          y: mode === "idle" ? 0 : "calc(50vh - 5rem)", 
-          scale: mode === "idle" ? 1 : 0.25 
-        }} 
-        transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }} 
-        className="fixed top-1/2 left-1/2 z-10 pointer-events-none" 
-        style={{ marginTop: "-9rem", marginLeft: "-9rem" }}
+        {/* Response text */}
+        <AnimatePresence>
+          {showResponse && !isProcessing && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4 }}
+              className={`px-6 py-3 rounded-full border ${
+                state === "idle" 
+                  ? "bg-blue-500/5 border-blue-500/10" 
+                  : "bg-orange-500/5 border-orange-500/10"
+              }`}
+            >
+              <p className={`text-sm font-light whitespace-nowrap ${
+                state === "idle" ? "text-blue-300/60" : "text-orange-300/60"
+              }`}>
+                {response}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Processing dots */}
+        <AnimatePresence>
+          {isProcessing && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex gap-2"
+            >
+              <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" />
+              <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+              <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      
+      {/* Bottom indicator */}
+      <motion.div
+        animate={{ opacity: [0.3, 0.6, 0.3] }}
+        transition={{ duration: 2, repeat: Infinity }}
+        className="absolute bottom-12 left-1/2 -translate-x-1/2 text-xs tracking-widest whitespace-nowrap"
       >
-        <JarvisCore isSpeaking={isJarvisSpeaking} size="large" />
-      </motion.div>
-
-      {/* Processing indicator */}
-      <AnimatePresence>
-        {isProcessing && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            exit={{ opacity: 0, y: 10 }} 
-            className="fixed top-6 left-1/2 -translate-x-1/2 bg-orange-500/20 backdrop-blur-xl px-5 py-2 rounded-full text-sm text-orange-400 border border-orange-500/30 z-50"
-          >
-            JARVIS is thinking...
-          </motion.div>
+        {state === "idle" ? (
+          <span className="text-blue-400/30">
+            {listening ? "LISTENING FOR WAKE WORD..." : "INITIALIZING..."}
+          </span>
+        ) : (
+          <span className="text-orange-400/30">
+            SAY "JARVIS" FOR COMMANDS
+          </span>
         )}
-      </AnimatePresence>
+      </motion.div>
     </div>
   );
 }
