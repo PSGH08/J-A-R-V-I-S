@@ -196,13 +196,13 @@ export default function App() {
         </motion.div>
       </div>
 
-      {/* Text area below core */}
-      <div className="absolute top-[calc(50%+160px)] left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">        
-        {/* Title - only in idle */}
+      {/* Text area */}
+      <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">        
+        {/* Title - only in idle, now at top */}
         <AnimatePresence>
           {state === "idle" && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ delay: 0.5, duration: 0.8 }}
@@ -217,7 +217,10 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
 
+      {/* Response area - below core */}
+      <div className="absolute top-[calc(50%+260px)] left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
         {/* Response text */}
         <AnimatePresence>
           {showResponse && !isProcessing && (
@@ -260,17 +263,17 @@ export default function App() {
       
       {/* Bottom indicator */}
       <motion.div
-        animate={{ opacity: [0.3, 0.6, 0.3] }}
+        animate={{ opacity: [0.5, 0.9, 0.5] }}
         transition={{ duration: 2, repeat: Infinity }}
-        className="absolute bottom-12 left-1/2 -translate-x-1/2 text-xs tracking-widest whitespace-nowrap"
+        className="absolute bottom-20 left-1/2 -translate-x-1/2 text-xs tracking-widest whitespace-nowrap"
       >
         {state === "idle" ? (
-          <span className="text-blue-400/30">
+          <span className="text-blue-400/60">
             {listening ? "LISTENING FOR WAKE WORD..." : "INITIALIZING..."}
           </span>
         ) : (
-          <span className="text-orange-400/30">
-            SAY "JARVIS" FOR COMMANDS
+          <span className="text-orange-400/50">
+            LISTENING FOR COMMANDS
           </span>
         )}
       </motion.div>
