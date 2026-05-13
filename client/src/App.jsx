@@ -220,7 +220,7 @@ export default function App() {
       </div>
 
       {/* Response area - below core */}
-      <div className="absolute top-[calc(50%+260px)] left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
+      <div className="absolute top-[calc(50%+300px)] left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
         {/* Response text */}
         <AnimatePresence>
           {showResponse && !isProcessing && (
