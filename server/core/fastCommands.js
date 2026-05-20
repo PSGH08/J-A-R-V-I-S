@@ -12,7 +12,7 @@ function parseFastCommand(text) {
   ];
 
   // Lock Jarvis - require wake word again
-  if (input.includes("lock jarvis") || input.includes("lock yourself") || input.includes("go to sleep") || input.includes("standby")) {
+  if (input.includes("lock jarvis") || input.includes("lock yourself") || input.includes("go to sleep") || input.includes("standby") || input.includes("sleep") || input.includes("later jarvis") || input.includes("jarvis lock")) {
     return { type: "lock_jarvis" };
   }
   
@@ -74,7 +74,7 @@ function parseFastCommand(text) {
     let responsePool;
     
     // Check for special wake phrases first
-    if (input.includes("daddy's home") || input.includes("i'm back") || input.includes("im back")) {
+    if (input.includes("guess who's back") || input.includes("i'm back") || input.includes("im back")) {
       responsePool = responses.welcomeBack;
     } else if (input.includes("suit up") || input.includes("status report") || input.includes("good to go")) {
       responsePool = responses.suitUp;
@@ -310,7 +310,7 @@ function parseFastCommand(text) {
     return { type: "add_note", text: noteText };
   }
   
-  if (input.includes("list notes") || input.includes("my notes") || input.includes("show notes") || input.includes("read notes")) {
+  if (input.includes("my notes") || input.includes("show notes") || input.includes("read notes")) {
     return { type: "list_notes" };
   }
   
@@ -327,11 +327,11 @@ function parseFastCommand(text) {
   // REMINDER COMMANDS
   // ============================================
   
-  if (input.includes("remind me") || input.includes("set a reminder")) {
+  if (input.includes("remind me to") || input.includes("set a reminder")) {
     return { type: "add_reminder", text: input };
   }
   
-  if (input.includes("my reminders") || input.includes("list reminders") || input.includes("pending reminders")) {
+  if (input.includes("my reminders") || input.includes("pending reminders")) {
     return { type: "list_reminders" };
   }
 
@@ -368,7 +368,7 @@ function parseFastCommand(text) {
   }
 
   // Cancel timer
-  if (input.includes("cancel timer") || input.includes("stop timer") || input.includes("kill timer") || input.includes("end timer")) {
+  if (input.includes("cancel timer") || input.includes("stop timer") || input.includes("end timer")) {
     return { type: "cancel_timer" };
   }
 

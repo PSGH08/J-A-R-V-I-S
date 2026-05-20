@@ -1,50 +1,212 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { socket } from "./services/socket";
 import { speak, speakDramatically, speakWithPersonality, isJarvisSpeaking as checkIsSpeaking } from "./services/speech";
 import { useVoice } from "./hooks/useVoice";
-import JarvisCore from "./components/JarvisCore";
+import IdleJarvis from "./components/JarvisCore/Idle/IdleJarvis";
+import AwakeJarvis from "./components/JarvisCore/Awake/AwakeJarvis";
+import { useMemoryCleanup } from "./hooks/useMemoryCleanup";
+
+function SystemMonitor({ state, stats }) {
+  const isIdle = state === "idle";
+  const textColor = isIdle ? "text-blue-400/80" : "text-orange-400/80";
+  const borderColor = isIdle ? "border-blue-400/20" : "border-orange-400/20";
+  const bgColor = isIdle ? "bg-blue-500/5" : "bg-orange-500/5";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className={`absolute top-4 right-4 z-20 font-mono text-[15px] leading-relaxed ${textColor} ${bgColor} border ${borderColor} rounded-lg px-3 py-2 min-w-[300px] backdrop-blur-sm`}
+    >
+      {/* CPU */}
+      <div className="flex justify-between">
+        <span>CPU</span>
+        <span>{stats.cpu.percent}%</span>
+      </div>
+      <div className="w-full h-1 bg-white/10 rounded-full mb-1">
+        <motion.div
+          className="h-full rounded-full"
+          style={{ width: `${Math.min(stats.cpu.percent, 100)}%`, backgroundColor: isIdle ? "#60a5fa" : "#fb923c" }}
+          animate={{ width: `${Math.min(stats.cpu.percent, 100)}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+
+      {/* RAM */}
+      <div className="flex justify-between mt-1">
+        <span>RAM</span>
+        <span>{stats.ram.used} / {stats.ram.total} GB</span>
+      </div>
+      <div className="w-full h-1 bg-white/10 rounded-full mb-1">
+        <motion.div
+          className="h-full rounded-full"
+          style={{ width: `${Math.min(stats.ram.percent, 100)}%`, backgroundColor: isIdle ? "#60a5fa" : "#fb923c" }}
+          animate={{ width: `${Math.min(stats.ram.percent, 100)}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+
+      {!isIdle && (
+        <>
+          {/* GPU Usage - only show if available */}
+          {stats.gpu.percent !== null && stats.gpu.percent !== undefined && (
+            <>
+              <div className="flex justify-between mt-1">
+                <span>GPU</span>
+                <span>{stats.gpu.percent}%</span>
+              </div>
+              <div className="w-full h-1 bg-white/10 rounded-full mb-1">
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ width: `${Math.min(stats.gpu.percent, 100)}%`, backgroundColor: "#fb923c" }}
+                  animate={{ width: `${Math.min(stats.gpu.percent, 100)}%` }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
+            </>
+          )}
+          
+          {/* GPU Temp - only show if available */}
+          {stats.gpu.temp !== null && stats.gpu.temp !== undefined && (
+            <div className="flex justify-between mt-1">
+              <span>GPU Temp</span>
+              <span>{stats.gpu.temp}°C</span>
+            </div>
+          )} 
+
+          {/* Top Tasks */}
+          {stats.tasks && stats.tasks.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-white/10">
+              <div className="text-[12px] opacity-60 mb-1">TOP TASKS</div>
+              {stats.tasks.slice(0, 10).map((task, i) => (
+                <div key={i} className="flex justify-between text-[12px]">
+                  <span className="truncate mr-2 max-w-[100px]">{task.name}</span>
+                  <span className="whitespace-nowrap">{typeof task.cpu === 'number' ? task.cpu.toFixed(1) : task.cpu}% | {typeof task.ram === 'number' ? task.ram.toFixed(1) : task.ram}GB</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </motion.div>
+  );
+}
 
 function AnimatedBackground({ state }) {
   const isIdle = state === "idle";
-  
+
+  const idleMessages = useMemo(() => [
+    "Systems in standby...", "Awaiting wake word...", "Core temperature: optimal",
+    "Power levels: nominal", "Neural network: dormant", "J.A.R.V.I.S sleeping...",
+    "Passive sensors active", "Listening for commands...", "Ready when you are, sir",
+    "Background processes: 0", "Threat level: none", "All systems quiet",
+    "Energy conservation mode", "Say 'Jarvis' to begin", "Standing by...",
+    "Diagnostics: all green", "Idle state confirmed", "No active missions",
+    "Security grid: online", "Waiting...",
+  ], []);
+
+  const awakeMessages = useMemo(() => [
+    "> init core systems", "> load neural interface", "> scan threat matrix",
+    "> connect satellites", "> run diagnostics", "> check power levels",
+    "> sync database", "> ping stark_industries", "> verify encryption",
+    "> update firewall", "> allocate memory", "> calibrate sensors",
+    "> test propulsion", "> analyze bandwidth", "> check weapon systems",
+    "> run mk42 protocol", "> backup config files", "> clean cache",
+    "> optimize GPU", "> verify user identity",
+  ], []);
+
+  const idleItems = useMemo(() => {
+    return Array.from({ length: 25 }).map((_, i) => ({
+      message: idleMessages[i % idleMessages.length],
+      left: Math.random() < 0.5 ? 2 + Math.random() * 30 : 68 + Math.random() * 30,
+      top: Math.random() < 0.5 ? 2 + Math.random() * 30 : 68 + Math.random() * 30,
+      delay: Math.random() * 8, duration: 6 + Math.random() * 8,
+      fontSize: 10 + Math.random() * 6, opacity: 0.15 + Math.random() * 0.2,
+    }));
+  }, [idleMessages]);
+
+  const awakeItems = useMemo(() => {
+    return Array.from({ length: 5 }).map((_, i) => ({
+      message: awakeMessages[Math.floor(Math.random() * awakeMessages.length)],
+      left: i < 3 ? 3 + Math.random() * 25 : 72 + Math.random() * 25,
+      top: 5 + i * 18 + Math.random() * 8,
+      delay: i * 2 + Math.random() * 2, duration: 5 + Math.random() * 4,
+      fontSize: 11 + Math.random() * 3, opacity: 0.35 + Math.random() * 0.25,
+    }));
+  }, [awakeMessages]);
+
+  const stars = useMemo(() => {
+    return Array.from({ length: 60 }).map(() => ({
+      size: 0.5 + Math.random() * 2,
+      left: Math.random() < 0.5 ? 2 + Math.random() * 35 : 63 + Math.random() * 35,
+      top: Math.random() < 0.5 ? 2 + Math.random() * 35 : 63 + Math.random() * 35,
+      delay: Math.random() * 5, duration: 2 + Math.random() * 3,
+    }));
+  }, []);
+
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      {/* Floating particles */}
-      {Array.from({ length: !isIdle ? 60 : 30 }).map((_, i) => (
-        <motion.div 
-          key={i} 
-          className="absolute rounded-full" 
-          style={{ 
-            width: `${1 + Math.random() * 3}px`, 
-            height: `${1 + Math.random() * 3}px`, 
-            background: !isIdle 
-              ? (Math.random() > 0.5 ? "rgba(251,146,60,0.85)" : "rgba(253,186,116,0.65)")
-              : (Math.random() > 0.5 ? "rgba(96,165,250,0.85)" : "rgba(147,197,253,0.65)"),
-            left: `${Math.random() * 100}%`, 
-            top: `${Math.random() * 100}%` 
-          }} 
-          animate={{ 
-            y: [0, -20 - Math.random() * 40, 0], 
-            x: [0, (Math.random() - 0.5) * 20, 0], 
-            opacity: [0, !isIdle ? 0.9 : 0.6, 0] 
-          }} 
-          transition={{ 
-            duration: !isIdle ? 2 + Math.random() * 3 : 3 + Math.random() * 4, 
-            repeat: Infinity, 
-            delay: Math.random() * 6, 
-            ease: "easeInOut" 
-          }} 
-        />
-      ))}
-      
-      <div 
-        className="absolute inset-0 opacity-[0.015]" 
-        style={{ 
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5L55 20v30L30 65 5 50V20L30 5z' fill='none' stroke='white' stroke-width='0.5'/%3E%3C/svg%3E")`, 
-          backgroundSize: "60px 60px" 
-        }} 
-      />
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {isIdle ? (
+        <>
+          {stars.map((s, i) => (
+            <motion.div key={`star-${i}`} className="absolute rounded-full bg-white"
+              style={{ width: s.size, height: s.size, left: `${s.left}%`, top: `${s.top}%` }}
+              animate={{ opacity: [0.2, 0.8, 0.2], scale: [0.8, 1.3, 0.8] }}
+              transition={{ duration: s.duration, repeat: Infinity, delay: s.delay, ease: "easeInOut" }}
+            />
+          ))}
+          {idleItems.map((item, i) => (
+            <motion.div key={`idle-msg-${i}`} className="absolute whitespace-nowrap font-mono text-blue-400/60"
+              style={{ left: `${item.left}%`, top: `${item.top}%`, fontSize: `${item.fontSize}px`, opacity: item.opacity }}
+              animate={{ opacity: [item.opacity * 0.4, item.opacity, item.opacity * 0.4], y: [-5, 5, -5], x: [-3, 3, -3] }}
+              transition={{ duration: item.duration, repeat: Infinity, delay: item.delay, ease: "easeInOut" }}
+            >
+              {item.message}
+            </motion.div>
+          ))}
+        </>
+      ) : (
+        <>
+          {awakeItems.map((item, i) => (
+            <motion.div key={`cmd-${i}`} className="absolute whitespace-nowrap font-mono text-orange-400/70"
+              style={{ left: `${item.left}%`, top: `${item.top}%`, fontSize: `${item.fontSize}px`, maxWidth: "40%", overflow: "hidden", textOverflow: "ellipsis" }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: [0, item.opacity, item.opacity, 0], x: [0, 5, 5, 0] }}
+              transition={{ duration: item.duration, repeat: Infinity, delay: item.delay, ease: "easeInOut", times: [0, 0.2, 0.7, 1] }}
+            >
+              {item.message}
+            </motion.div>
+          ))}
+          {[0, 1].map((i) => (
+            <motion.div key={`vol-${i}`} className="absolute flex gap-[1px] items-end"
+              style={{ [i === 0 ? "left" : "right"]: `${4 + i * 2}%`, bottom: `${8 + i * 10}%`, height: "40px" }}
+              animate={{ opacity: [0.3, 0.7, 0.3] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: i * 0.7 }}
+            >
+              {[...Array(6)].map((_, j) => (
+                <motion.div key={j} className="w-[3px] bg-orange-400/50"
+                  animate={{ height: [6, 18, 10, 22, 8, 16] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: j * 0.12 }}
+                />
+              ))}
+            </motion.div>
+          ))}
+          <motion.div className="absolute left-0 right-0 h-[1px] bg-orange-400/20" animate={{ top: ["0%", "100%", "0%"] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} />
+          <motion.div className="absolute left-0 right-0 h-[1px] bg-orange-400/12" animate={{ top: ["100%", "0%", "100%"] }} transition={{ duration: 6, repeat: Infinity, ease: "linear", delay: 2 }} />
+          <motion.div className="absolute top-0 bottom-0 w-[1px] bg-orange-400/15" animate={{ left: ["0%", "100%", "0%"] }} transition={{ duration: 4.5, repeat: Infinity, ease: "linear", delay: 1 }} />
+          <motion.div className="absolute h-[1px] bg-orange-400/10" style={{ width: "141%", top: "-20%", left: "-20%" }}
+            animate={{ top: ["-20%", "120%", "-20%"], left: ["-20%", "120%", "-20%"] }}
+            transition={{ duration: 7, repeat: Infinity, ease: "linear", delay: 0.5 }}
+          />
+          <motion.div className="absolute border-l-[3px] border-t-[3px] border-orange-400/40" style={{ left: "2%", top: "2%", width: "50px", height: "50px" }}
+            animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div className="absolute border-r-[3px] border-b-[3px] border-orange-400/40" style={{ right: "2%", bottom: "2%", width: "50px", height: "50px" }}
+            animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -52,180 +214,136 @@ function AnimatedBackground({ state }) {
 export default function App() {
   const [response, setResponse] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [hasGreeted, setHasGreeted] = useState(false);
   const [isJarvisSpeaking, setIsJarvisSpeaking] = useState(false);
   const [state, setState] = useState("idle");
   const [showResponse, setShowResponse] = useState(false);
   const [hasBeenAwakened, setHasBeenAwakened] = useState(false);
+  const [volume, setVolume] = useState(50);
+  const [systemStats, setSystemStats] = useState({
+    cpu: { percent: 0 },
+    ram: { percent: 0, used: 0, total: 0 },
+    gpu: { temp: 0 },
+    tasks: [],
+  });
 
   const { listening, text } = useVoice();
+  useMemoryCleanup();
 
-  // Check speaking status
-  useEffect(() => { 
-    const i = setInterval(() => setIsJarvisSpeaking(checkIsSpeaking()), 100); 
-    return () => clearInterval(i); 
+  useEffect(() => {
+    const i = setInterval(() => setIsJarvisSpeaking(checkIsSpeaking()), 100);
+    return () => clearInterval(i);
   }, []);
 
-  // Hide response text after speaking finishes
-  useEffect(() => { 
-    let t; 
+  useEffect(() => {
+    let t;
     if (!isJarvisSpeaking && !isProcessing && showResponse) {
       const delay = Math.max(3000, (response?.length || 0) * 50);
-      t = setTimeout(() => {
-        setShowResponse(false);
-      }, delay);
+      t = setTimeout(() => setShowResponse(false), delay);
     }
-    return () => clearTimeout(t); 
+    return () => clearTimeout(t);
   }, [isJarvisSpeaking, isProcessing, showResponse, response]);
 
-  // Socket setup
-  useEffect(() => { 
-    window.socket = socket; 
-    return () => delete window.socket; 
+  useEffect(() => {
+    window.socket = socket;
+    return () => delete window.socket;
   }, []);
 
-  // Handle socket responses - ONLY from backend
-  useEffect(() => { 
-    socket.on("response", async (d) => { 
-      if (!d?.text) return; 
-      setResponse(d.text); 
-      setShowResponse(true);
-      setIsProcessing(true);
-      
-      const lt = d.text.toLowerCase(); 
-      if (lt.includes("timer finished")) await speak(d.text); 
-      else if (lt.includes("error")) { 
-        await speakWithPersonality("errors"); 
-        await speak(d.text); 
-      } else if (d.text.length > 100) await speakDramatically(d.text); 
-      else await speak(d.text); 
-      
+  useEffect(() => {
+    let audioContext, analyser, dataArray, animationFrame;
+    const getVolume = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        audioContext.createMediaStreamSource(stream).connect(analyser);
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const updateVolume = () => {
+          analyser.getByteFrequencyData(dataArray);
+          setVolume(Math.min(100, Math.round((dataArray.reduce((a, b) => a + b) / dataArray.length / 128) * 100)));
+          animationFrame = requestAnimationFrame(updateVolume);
+        };
+        updateVolume();
+      } catch (err) { console.log("Microphone access denied"); }
+    };
+    getVolume();
+    return () => { if (animationFrame) cancelAnimationFrame(animationFrame); if (audioContext) audioContext.close(); };
+  }, []);
+
+  useEffect(() => {
+    socket.on("response", async (d) => {
+      if (!d?.text) return;
+      setResponse(d.text); setShowResponse(true); setIsProcessing(true);
+      const lt = d.text.toLowerCase();
+      if (lt.includes("timer finished")) await speak(d.text);
+      else if (lt.includes("error")) { await speakWithPersonality("errors"); await speak(d.text); }
+      else if (d.text.length > 100) await speakDramatically(d.text);
+      else await speak(d.text);
       setIsProcessing(false);
-    }); 
-
-    socket.on("sleep", () => {
-      setState("idle");
-      setHasBeenAwakened(false);
-      setShowResponse(false);
-      setResponse("");
     });
-
-    return () => {
-      socket.off("response");
-      socket.off("sleep");
-    }; 
+    socket.on("sleep", () => { setState("idle"); setHasBeenAwakened(false); setShowResponse(false); setResponse(""); });
+    socket.on("volume", (vol) => setVolume(vol));
+    socket.on("systemStats", (stats) => setSystemStats(stats));
+    return () => { 
+      socket.off("response"); socket.off("sleep"); socket.off("volume"); socket.off("systemStats");
+    };
   }, []);
 
-  // Handle voice input - SAME LOGIC AS ORIGINAL CODE
-  useEffect(() => { 
+  useEffect(() => {
     if (text && !isProcessing && !isJarvisSpeaking) {
-      const containsWakeWord = /jarvis/i.test(text);
-      
-      if (containsWakeWord) {
-        // First wake word - transition to awake
-        if (!hasBeenAwakened) {
-          setHasBeenAwakened(true);
-          setState("awake");
-        }
-        
-        // Extract command after wake word if present
+      if (/jarvis/i.test(text)) {
+        if (!hasBeenAwakened) { setHasBeenAwakened(true); setState("awake"); }
         const command = text.replace(/jarvis/i, "").trim();
-        if (command) {
-          socket.emit("command", command);
-        }
+        if (command) socket.emit("command", command);
       }
     }
   }, [text, isProcessing, isJarvisSpeaking]);
 
-  // Greeting logic
-  useEffect(() => { 
-    if (!hasGreeted && listening) { 
-      const h = new Date().getHours(); 
-      let g = "Good evening. Say Jarvis when you need me."; 
-      if (h < 12) g = "Good morning. Say Jarvis when you need me."; 
-      else if (h < 17) g = "Good afternoon. Say Jarvis when you need me."; 
-      setTimeout(() => { 
-        setResponse(g);
-        setShowResponse(true);
-        speak(g); 
-        setHasGreeted(true); 
-      }, 1500); 
-    } 
-  }, [hasGreeted, listening]);
+  const isIdle = state === "idle";
 
   return (
-    <div className="relative min-h-screen w-full bg-[#050505] text-white overflow-hidden">
+    <div className="relative min-h-screen w-full bg-[#020202] text-white overflow-hidden">
       <AnimatedBackground state={state} />
+      
+      {/* System Monitor - Top Right with REAL data */}
+      <SystemMonitor state={state} stats={systemStats} />
 
-      {/* Core - dead center */}
+      <AnimatePresence>
+        {isIdle && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            transition={{ delay: 0.5, duration: 0.8 }} className="absolute top-8 left-0 right-0 flex justify-center">
+            <div className="text-center">
+              <h1 className="text-3xl font-light tracking-[0.3em] text-blue-400 mb-2 whitespace-nowrap">J.A.R.V.I.S</h1>
+              <p className="text-xs text-blue-400/80 tracking-[0.2em] font-light whitespace-nowrap">Just A Rather Very Intelligent System</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-        <motion.div
-          key={state}
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-        >
-          <JarvisCore state={state} size="large" />
-        </motion.div>
+        {isIdle ? (
+          <motion.div key="idle" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.5 }}>
+            <IdleJarvis />
+          </motion.div>
+        ) : (
+          <motion.div key="awake" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.5 }}>
+            <AwakeJarvis volume={volume} />
+          </motion.div>
+        )}
       </div>
 
-      {/* Text area */}
-      <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">        
-        {/* Title - only in idle, now at top */}
-        <AnimatePresence>
-          {state === "idle" && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ delay: 0.5, duration: 0.8 }}
-              className="text-center"
-            >
-              <h1 className="text-3xl font-light tracking-[0.3em] text-blue-400/100 mb-2 whitespace-nowrap">
-                J.A.R.V.I.S
-              </h1>
-              <p className="text-xs text-blue-400/100 tracking-[0.2em] font-light whitespace-nowrap">
-                Just A Rather Very Intelligent System
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Response area - below core */}
-      <div className="absolute top-[calc(50%+300px)] left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
-        {/* Response text */}
+      <div className="absolute top-[calc(50%+320px)] left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
         <AnimatePresence>
           {showResponse && !isProcessing && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4 }}
-              className={`px-6 py-3 rounded-2xl border max-w-lg text-center backdrop-blur-sm ${
-                state === "idle" 
-                  ? "bg-blue-500/10 border-blue-400/20 text-blue-300/80" 
-                  : "bg-orange-500/10 border-orange-400/20 text-orange-300/80"
-              }`}
-            >
-              <p className={`text-sm font-light ${
-                state === "idle" ? "text-blue-300/90" : "text-orange-300/90"
-              }`}>
-                {response}
-              </p>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4 }}
+              className={`px-6 py-3 rounded-2xl border max-w-lg text-center backdrop-blur-sm ${isIdle ? "bg-blue-500/10 border-blue-400/20" : "bg-orange-500/10 border-orange-400/20"}`}>
+              <p className={`text-sm font-light ${isIdle ? "text-blue-300/90" : "text-orange-300/90"}`}>{response}</p>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Processing dots */}
         <AnimatePresence>
           {isProcessing && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex gap-2"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex gap-2">
               <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" />
               <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce [animation-delay:0.2s]" />
               <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce [animation-delay:0.4s]" />
@@ -233,23 +351,11 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
-      
-      {/* Bottom indicator */}
+
       {!showResponse && !isProcessing && (
-        <motion.div
-          animate={{ opacity: [0.5, 0.9, 0.5] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute bottom-20 left-1/2 -translate-x-1/2 text-xs tracking-widest whitespace-nowrap"
-        >
-          {state === "idle" ? (
-            <span className="text-blue-400/80">
-              {listening ? "LISTENING FOR WAKE WORD..." : "LISTENING FOR WAKE WORD..."}
-            </span>
-          ) : (
-            <span className="text-orange-400/80">
-              LISTENING FOR COMMANDS
-            </span>
-          )}
+        <motion.div animate={{ opacity: [0.5, 0.9, 0.5] }} transition={{ duration: 2, repeat: Infinity }}
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 text-xs tracking-[0.4em] whitespace-nowrap">
+          {isIdle ? <span className="text-blue-400/70">LISTENING FOR WAKE WORD</span> : <span className="text-orange-400/70">LISTENING FOR COMMANDS</span>}
         </motion.div>
       )}
     </div>

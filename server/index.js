@@ -8,6 +8,7 @@ const { queryOllama } = require("./ai/ollamaClient");
 const { SYSTEM_PROMPT } = require("./core/schema");
 const { routeCommand } = require("./core/commandRouter");
 const { startReminderChecker } = require("./commands/reminders");
+const { getSystemStats } = require("./core/systemStats");
 
 const app = express();
 
@@ -40,8 +41,18 @@ io.on("connection", (socket) => {
 
   console.log("Client connected:", socket.id);
 
+  const statsInterval = setInterval(async () => {
+    try {
+      const stats = await getSystemStats();
+      socket.emit("systemStats", stats);
+    } catch (err) {
+      console.error("Stats error:", err.message);
+    }
+  }, 3000);
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
+    clearInterval(statsInterval);
   });
 
   socket.on("resetWakeWord", () => {

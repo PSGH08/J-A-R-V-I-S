@@ -1,0 +1,121 @@
+export default function Clock() {
+  const now = new Date();
+  const hours = now.getHours() % 12;
+  const minutes = now.getMinutes();
+  const totalHours = hours + minutes / 60;
+
+  const circumference = 2 * Math.PI * 140;
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div className="relative h-[300px] w-[340px] rounded-full">
+        <svg viewBox="0 0 360 360" className="h-full w-full">
+          <defs>
+            <linearGradient id="clockGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0369a1" />
+              <stop offset="25%" stopColor="#0ea5e9" />
+              <stop offset="50%" stopColor="#38bdf8" />
+              <stop offset="75%" stopColor="#22d3ee" />
+              <stop offset="100%" stopColor="#0369a1" />
+            </linearGradient>
+            <filter id="clockGlow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Subtle outer ring */}
+          <circle
+            cx="180"
+            cy="180"
+            r="155"
+            fill="none"
+            stroke="rgba(56,189,248,0.08)"
+            strokeWidth="1"
+          />
+          
+          {/* Background track */}
+          <circle
+            cx="180"
+            cy="180"
+            r="140"
+            fill="none"
+            stroke="rgba(14,165,233,0.08)"
+            strokeWidth="8"
+          />
+          
+          {/* Glow track underneath */}
+          {totalHours > 0 && (
+            <circle
+              cx="180"
+              cy="180"
+              r="140"
+              fill="none"
+              stroke="rgba(56,189,248,0.15)"
+              strokeWidth="12"
+              strokeDasharray={`${(totalHours / 12) * circumference} ${circumference}`}
+              strokeLinecap="round"
+              transform="rotate(-90 180 180)"
+            />
+          )}
+          
+          {/* Main progress arc */}
+          {totalHours > 0 && (
+            <circle
+              cx="180"
+              cy="180"
+              r="140"
+              fill="none"
+              stroke="url(#clockGradient)"
+              strokeWidth="8"
+              strokeDasharray={`${(totalHours / 12) * circumference} ${circumference}`}
+              strokeLinecap="round"
+              transform="rotate(-90 180 180)"
+              filter="url(#clockGlow)"
+            />
+          )}
+          
+          {/* Progress dot at the leading edge */}
+          {totalHours > 0 && (
+            <circle
+              cx={180 + 140 * Math.cos((totalHours / 12) * 2 * Math.PI - Math.PI / 2)}
+              cy={180 + 140 * Math.sin((totalHours / 12) * 2 * Math.PI - Math.PI / 2)}
+              r="6"
+              fill="#38bdf8"
+              filter="url(#clockGlow)"
+            />
+          )}
+          
+          {/* Hour markers */}
+          {[...Array(12)].map((_, i) => {
+            const angle = ((i * 30) - 90) * Math.PI / 180;
+            const innerRadius = 130;
+            const outerRadius = 145;
+            const x1 = 180 + Math.cos(angle) * innerRadius;
+            const y1 = 180 + Math.sin(angle) * innerRadius;
+            const x2 = 180 + Math.cos(angle) * outerRadius;
+            const y2 = 180 + Math.sin(angle) * outerRadius;
+            const isFilled = i < totalHours;
+            
+            return (
+              <line
+                key={i}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={isFilled ? "#38bdf8" : "rgba(14,165,233,0.2)"}
+                strokeWidth={isFilled ? "2.5" : "1.5"}
+                strokeLinecap="round"
+                filter={isFilled ? "url(#clockGlow)" : undefined}
+              />
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
