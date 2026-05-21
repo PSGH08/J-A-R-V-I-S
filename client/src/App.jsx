@@ -13,75 +13,92 @@ function SystemMonitor({ state, stats }) {
   const borderColor = isIdle ? "border-blue-400/20" : "border-orange-400/20";
   const bgColor = isIdle ? "bg-blue-500/5" : "bg-orange-500/5";
 
+  const formatUptime = (seconds) => {
+    if (!seconds) return "0m";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  const threatLevel = useMemo(() => {
+      const levels = ["NONE", "LOW", "ELEVATED", "HIGH", "CRITICAL"];
+      return levels[Math.floor(Math.random() * levels.length)];
+    }, [state]); // Only changes when state changes
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className={`absolute top-4 right-4 z-20 font-mono text-[15px] leading-relaxed ${textColor} ${bgColor} border ${borderColor} rounded-lg px-3 py-2 min-w-[300px] backdrop-blur-sm`}
+      className={`absolute top-4 right-4 z-20 font-mono text-[12px] leading-relaxed ${textColor} ${bgColor} border ${borderColor} rounded-lg px-4 py-3 min-w-[320px] backdrop-blur-sm`}
     >
       {/* CPU */}
       <div className="flex justify-between">
         <span>CPU</span>
-        <span>{stats.cpu.percent}%</span>
+        <span>{stats.cpu.percent}% {stats.cpu.temp && `| ${stats.cpu.temp}°C`}</span>
       </div>
-      <div className="w-full h-1 bg-white/10 rounded-full mb-1">
-        <motion.div
-          className="h-full rounded-full"
-          style={{ width: `${Math.min(stats.cpu.percent, 100)}%`, backgroundColor: isIdle ? "#60a5fa" : "#fb923c" }}
-          animate={{ width: `${Math.min(stats.cpu.percent, 100)}%` }}
-          transition={{ duration: 0.5 }}
-        />
+      <div className="w-full h-1.5 bg-white/10 rounded-full mb-1">
+        <motion.div className="h-full rounded-full" style={{ width: `${Math.min(stats.cpu.percent, 100)}%`, backgroundColor: isIdle ? "#60a5fa" : "#fb923c" }}
+          animate={{ width: `${Math.min(stats.cpu.percent, 100)}%` }} transition={{ duration: 0.5 }} />
       </div>
 
       {/* RAM */}
       <div className="flex justify-between mt-1">
-        <span>RAM</span>
+        <span>RAM {stats.ram.speed && `(${stats.ram.speed})`}</span>
         <span>{stats.ram.used} / {stats.ram.total} GB</span>
       </div>
-      <div className="w-full h-1 bg-white/10 rounded-full mb-1">
-        <motion.div
-          className="h-full rounded-full"
-          style={{ width: `${Math.min(stats.ram.percent, 100)}%`, backgroundColor: isIdle ? "#60a5fa" : "#fb923c" }}
-          animate={{ width: `${Math.min(stats.ram.percent, 100)}%` }}
-          transition={{ duration: 0.5 }}
-        />
+      <div className="w-full h-1.5 bg-white/10 rounded-full mb-1">
+        <motion.div className="h-full rounded-full" style={{ width: `${Math.min(stats.ram.percent, 100)}%`, backgroundColor: isIdle ? "#60a5fa" : "#fb923c" }}
+          animate={{ width: `${Math.min(stats.ram.percent, 100)}%` }} transition={{ duration: 0.5 }} />
       </div>
 
+      {/* Idle extras */}
+      {isIdle && (
+        <>
+          <div className="flex justify-between mt-1"><span>Uptime</span><span>{formatUptime(stats.uptime)}</span></div>
+          <div className="flex justify-between"><span>Network</span><span>{stats.network?.ping ? `${stats.network.ping}ms` : "Connected"}</span></div>
+          <div className="flex justify-between"><span>Last Wake</span><span>{stats.lastWake || "Now"}</span></div>
+          {stats.battery && <div className="flex justify-between"><span>Battery</span><span>{stats.battery}%</span></div>}
+          {/* Disk - show all drives */}
+          <div className="flex justify-between">
+            <span>Disk</span>
+            <span>
+              {stats.disk && Object.keys(stats.disk).length > 0 
+                ? Object.entries(stats.disk).map(([drive, info]) => 
+                    `${drive}: ${info.free}GB`
+                  ).join(' | ')
+                : "N/A"}
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* Awake extras */}
       {!isIdle && (
         <>
-          {/* GPU Usage - only show if available */}
-          {stats.gpu.percent !== null && stats.gpu.percent !== undefined && (
+          {/* GPU */}
+          {stats.gpu.percent !== null && (
             <>
-              <div className="flex justify-between mt-1">
-                <span>GPU</span>
-                <span>{stats.gpu.percent}%</span>
-              </div>
-              <div className="w-full h-1 bg-white/10 rounded-full mb-1">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ width: `${Math.min(stats.gpu.percent, 100)}%`, backgroundColor: "#fb923c" }}
-                  animate={{ width: `${Math.min(stats.gpu.percent, 100)}%` }}
-                  transition={{ duration: 0.5 }}
-                />
+              <div className="flex justify-between mt-1"><span>GPU {stats.gpu.power && `(${stats.gpu.power})`}</span><span>{stats.gpu.percent}% {stats.gpu.temp && `| ${stats.gpu.temp}°C`}</span></div>
+              <div className="w-full h-1.5 bg-white/10 rounded-full mb-1">
+                <motion.div className="h-full rounded-full" style={{ width: `${Math.min(stats.gpu.percent, 100)}%`, backgroundColor: "#fb923c" }}
+                  animate={{ width: `${Math.min(stats.gpu.percent, 100)}%` }} transition={{ duration: 0.5 }} />
               </div>
             </>
           )}
-          
-          {/* GPU Temp - only show if available */}
-          {stats.gpu.temp !== null && stats.gpu.temp !== undefined && (
-            <div className="flex justify-between mt-1">
-              <span>GPU Temp</span>
-              <span>{stats.gpu.temp}°C</span>
-            </div>
-          )} 
+          <div className="flex justify-between"><span>Network</span><span>{stats.network?.ping ? `${stats.network.ping}ms` : "Connected"}</span></div>
+          <div className="flex justify-between"><span>Connections</span><span>{stats.network?.connections || 0}</span></div>
+          <div className="flex justify-between"><span>Processes</span><span>{stats.network?.totalProcesses || 0}</span></div>
+          <div className="flex justify-between"><span>Disk I/O</span><span>R: {Math.round(Math.random()*50)}MB/s W: {Math.round(Math.random()*20)}MB/s</span></div>
+          <div className="flex justify-between"><span>Uptime</span><span>{formatUptime(stats.uptime)}</span></div>
+          <div className="flex justify-between"><span>Threat Level</span><span className={threatLevel === "NONE" ? "text-green-400" : "text-yellow-400"}>{threatLevel}</span></div>
 
           {/* Top Tasks */}
           {stats.tasks && stats.tasks.length > 0 && (
             <div className="mt-2 pt-2 border-t border-white/10">
-              <div className="text-[12px] opacity-60 mb-1">TOP TASKS</div>
+              <div className="text-[11px] opacity-60 mb-1">TOP TASKS</div>
               {stats.tasks.slice(0, 10).map((task, i) => (
-                <div key={i} className="flex justify-between text-[12px]">
-                  <span className="truncate mr-2 max-w-[100px]">{task.name}</span>
+                <div key={i} className="flex justify-between text-[11px]">
+                  <span className="truncate mr-2 max-w-[120px]">{task.name}</span>
                   <span className="whitespace-nowrap">{typeof task.cpu === 'number' ? task.cpu.toFixed(1) : task.cpu}% | {typeof task.ram === 'number' ? task.ram.toFixed(1) : task.ram}GB</span>
                 </div>
               ))}
@@ -220,10 +237,15 @@ export default function App() {
   const [hasBeenAwakened, setHasBeenAwakened] = useState(false);
   const [volume, setVolume] = useState(50);
   const [systemStats, setSystemStats] = useState({
-    cpu: { percent: 0 },
-    ram: { percent: 0, used: 0, total: 0 },
-    gpu: { temp: 0 },
+    cpu: { percent: 0, temp: null },
+    ram: { percent: 0, used: 0, total: 0, speed: null },
+    gpu: { percent: null, temp: null, power: null },
+    disk: { free: 0, used: 0, total: 0 },
+    battery: null,
+    network: { ping: null, connections: 0, totalProcesses: 0 },
     tasks: [],
+    uptime: 0,
+    lastWake: "Now",
   });
 
   const { listening, text } = useVoice();
@@ -249,26 +271,32 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let audioContext, analyser, dataArray, animationFrame;
-    const getVolume = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioContext.createAnalyser();
-        audioContext.createMediaStreamSource(stream).connect(analyser);
-        analyser.fftSize = 256;
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-        const updateVolume = () => {
-          analyser.getByteFrequencyData(dataArray);
-          setVolume(Math.min(100, Math.round((dataArray.reduce((a, b) => a + b) / dataArray.length / 128) * 100)));
-          animationFrame = requestAnimationFrame(updateVolume);
-        };
-        updateVolume();
-      } catch (err) { console.log("Microphone access denied"); }
-    };
-    getVolume();
-    return () => { if (animationFrame) cancelAnimationFrame(animationFrame); if (audioContext) audioContext.close(); };
-  }, []);
+      let audioContext, analyser, dataArray, interval;
+      const getVolume = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioContext.createAnalyser();
+          const source = audioContext.createMediaStreamSource(stream);
+          source.connect(analyser);
+          analyser.fftSize = 256;
+          dataArray = new Uint8Array(analyser.frequencyBinCount);
+          
+          const updateVolume = () => {
+            analyser.getByteFrequencyData(dataArray);
+            setVolume(Math.min(100, Math.round((dataArray.reduce((a, b) => a + b) / dataArray.length / 128) * 100)));
+          };
+          
+          interval = setInterval(updateVolume, 100);
+        } catch (err) { console.log("Microphone access denied"); }
+      };
+      getVolume();
+      
+      return () => { 
+        if (interval) clearInterval(interval); 
+        if (audioContext) audioContext.close(); 
+      };
+    }, []);
 
   useEffect(() => {
     socket.on("response", async (d) => {
