@@ -692,7 +692,7 @@ function parseFastCommand(text) {
   }
 
 
-    // ============================================
+  // ============================================
   // PRIORITY 11: Spotify Playlists
   // ============================================
   
@@ -730,6 +730,30 @@ function parseFastCommand(text) {
         url: "https://open.spotify.com/playlist/0S78UVuLW857NQ2FaUYwTD?si=LgRw_d02SMmtHtjnivLO1Q"
       }
     };
+  }
+  
+  // ============================================
+  // PRIORITY 12: Camera Commands
+  // ============================================
+  
+  if (
+    input.includes("look at this") ||
+    input.includes("show camera") ||
+    input.includes("turn on camera") ||
+    input.includes("activate camera") ||
+    input.includes("what do you see") ||
+    input.includes("open camera")
+  ) {
+    return { type: "show_camera" };
+  }
+
+  if (
+    input.includes("close camera") ||
+    input.includes("hide camera") ||
+    input.includes("turn off camera") ||
+    input.includes("stop camera")
+  ) {
+    return { type: "hide_camera" };
   }
 
   return null;

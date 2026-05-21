@@ -276,6 +276,16 @@ async function routeCommand(command, socket) {
     case "text_response":
       result = { speech: command.text };
       break;
+      
+    case "show_camera":
+      socket.emit("showCamera");
+      result = { speech: "Camera activated, sir." };
+      break;
+
+    case "hide_camera":
+      socket.emit("hideCamera");
+      result = { speech: "Camera closed." };
+      break;
 
     default:
       console.log("Unknown command:", command);

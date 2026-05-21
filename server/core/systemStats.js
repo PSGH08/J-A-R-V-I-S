@@ -61,8 +61,6 @@ function getDiskSpace() {
     
     if (platform === 'win32') {
       exec('powershell "Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Used -gt 0 } | ForEach-Object { $_.Name + \'|\' + [math]::Round($_.Free/1GB,1) + \'|\' + [math]::Round(($_.Used + $_.Free)/1GB,1) }"', { timeout: 5000 }, (error, stdout) => {
-        console.log('Disk PSDrive output:', stdout);
-        console.log('Disk PSDrive error:', error);
         
         if (!error && stdout.trim()) {
           const drives = {};
@@ -78,7 +76,6 @@ function getDiskSpace() {
               }
             }
           });
-          console.log('Parsed drives:', drives);
           resolve(drives);
         } else {
           resolve({});

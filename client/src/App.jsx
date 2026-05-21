@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { socket } from "./services/socket";
 import { speak, speakDramatically, speakWithPersonality, isJarvisSpeaking as checkIsSpeaking } from "./services/speech";
@@ -21,14 +21,15 @@ function SystemMonitor({ state, stats }) {
   };
 
   const threatLevel = useMemo(() => {
-      const levels = ["NONE", "LOW", "ELEVATED", "HIGH", "CRITICAL"];
-      return levels[Math.floor(Math.random() * levels.length)];
-    }, [state]); // Only changes when state changes
+    const levels = ["NONE", "LOW", "ELEVATED", "HIGH", "CRITICAL"];
+    return levels[Math.floor(Math.random() * levels.length)];
+  }, [state]);
 
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
       className={`absolute top-4 right-4 z-20 font-mono text-[12px] leading-relaxed ${textColor} ${bgColor} border ${borderColor} rounded-lg px-4 py-3 min-w-[320px] backdrop-blur-sm`}
     >
       {/* CPU */}
@@ -51,31 +52,25 @@ function SystemMonitor({ state, stats }) {
           animate={{ width: `${Math.min(stats.ram.percent, 100)}%` }} transition={{ duration: 0.5 }} />
       </div>
 
-      {/* Idle extras */}
       {isIdle && (
         <>
           <div className="flex justify-between mt-1"><span>Uptime</span><span>{formatUptime(stats.uptime)}</span></div>
           <div className="flex justify-between"><span>Network</span><span>{stats.network?.ping ? `${stats.network.ping}ms` : "Connected"}</span></div>
           <div className="flex justify-between"><span>Last Wake</span><span>{stats.lastWake || "Now"}</span></div>
           {stats.battery && <div className="flex justify-between"><span>Battery</span><span>{stats.battery}%</span></div>}
-          {/* Disk - show all drives */}
           <div className="flex justify-between">
             <span>Disk</span>
             <span>
               {stats.disk && Object.keys(stats.disk).length > 0 
-                ? Object.entries(stats.disk).map(([drive, info]) => 
-                    `${drive}: ${info.free}GB`
-                  ).join(' | ')
+                ? Object.entries(stats.disk).map(([drive, info]) => `${drive}: ${info.free}GB`).join(' | ')
                 : "N/A"}
             </span>
           </div>
         </>
       )}
 
-      {/* Awake extras */}
       {!isIdle && (
         <>
-          {/* GPU */}
           {stats.gpu.percent !== null && (
             <>
               <div className="flex justify-between mt-1"><span>GPU {stats.gpu.power && `(${stats.gpu.power})`}</span><span>{stats.gpu.percent}% {stats.gpu.temp && `| ${stats.gpu.temp}°C`}</span></div>
@@ -92,7 +87,6 @@ function SystemMonitor({ state, stats }) {
           <div className="flex justify-between"><span>Uptime</span><span>{formatUptime(stats.uptime)}</span></div>
           <div className="flex justify-between"><span>Threat Level</span><span className={threatLevel === "NONE" ? "text-green-400" : "text-yellow-400"}>{threatLevel}</span></div>
 
-          {/* Top Tasks */}
           {stats.tasks && stats.tasks.length > 0 && (
             <div className="mt-2 pt-2 border-t border-white/10">
               <div className="text-[11px] opacity-60 mb-1">TOP TASKS</div>
@@ -110,7 +104,9 @@ function SystemMonitor({ state, stats }) {
   );
 }
 
-function AnimatedBackground({ state }) {
+function AnimatedBackground({ state, showCamera }) {
+  if (showCamera) return null;
+
   const isIdle = state === "idle";
 
   const idleMessages = useMemo(() => [
@@ -248,13 +244,28 @@ export default function App() {
     lastWake: "Now",
   });
 
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const videoRef = useRef(null);
+
   const { listening, text } = useVoice();
   useMemoryCleanup();
 
-  useEffect(() => {
-    const i = setInterval(() => setIsJarvisSpeaking(checkIsSpeaking()), 100);
-    return () => clearInterval(i);
+  const startCamera = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+      setCameraStream(stream);
+      setShowCamera(true);
+      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 100);
+    } catch (err) { console.error("Camera access denied:", err); }
   }, []);
+
+  const stopCamera = useCallback(() => {
+    if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); setCameraStream(null); }
+    setShowCamera(false);
+  }, [cameraStream]);
+
+  useEffect(() => { const i = setInterval(() => setIsJarvisSpeaking(checkIsSpeaking()), 100); return () => clearInterval(i); }, []);
 
   useEffect(() => {
     let t;
@@ -265,38 +276,32 @@ export default function App() {
     return () => clearTimeout(t);
   }, [isJarvisSpeaking, isProcessing, showResponse, response]);
 
-  useEffect(() => {
-    window.socket = socket;
-    return () => delete window.socket;
-  }, []);
+  useEffect(() => { window.socket = socket; return () => delete window.socket; }, []);
 
   useEffect(() => {
-      let audioContext, analyser, dataArray, interval;
-      const getVolume = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          analyser = audioContext.createAnalyser();
-          const source = audioContext.createMediaStreamSource(stream);
-          source.connect(analyser);
-          analyser.fftSize = 256;
-          dataArray = new Uint8Array(analyser.frequencyBinCount);
-          
-          const updateVolume = () => {
-            analyser.getByteFrequencyData(dataArray);
-            setVolume(Math.min(100, Math.round((dataArray.reduce((a, b) => a + b) / dataArray.length / 128) * 100)));
-          };
-          
-          interval = setInterval(updateVolume, 100);
-        } catch (err) { console.log("Microphone access denied"); }
-      };
-      getVolume();
-      
-      return () => { 
-        if (interval) clearInterval(interval); 
-        if (audioContext) audioContext.close(); 
-      };
-    }, []);
+    let audioContext, analyser, dataArray, interval;
+    const getVolume = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const updateVolume = () => {
+          analyser.getByteFrequencyData(dataArray);
+          setVolume(Math.min(100, Math.round((dataArray.reduce((a, b) => a + b) / dataArray.length / 128) * 100)));
+        };
+        interval = setInterval(updateVolume, 100);
+      } catch (err) { console.log("Microphone access denied"); }
+    };
+    getVolume();
+    return () => {
+      if (interval) clearInterval(interval);
+      if (audioContext) audioContext.close();
+    };
+  }, []);
 
   useEffect(() => {
     socket.on("response", async (d) => {
@@ -309,13 +314,16 @@ export default function App() {
       else await speak(d.text);
       setIsProcessing(false);
     });
-    socket.on("sleep", () => { setState("idle"); setHasBeenAwakened(false); setShowResponse(false); setResponse(""); });
+    socket.on("sleep", () => { setState("idle"); setHasBeenAwakened(false); setShowResponse(false); setResponse(""); stopCamera(); });
     socket.on("volume", (vol) => setVolume(vol));
     socket.on("systemStats", (stats) => setSystemStats(stats));
-    return () => { 
+    socket.on("showCamera", () => { if (state === "awake") startCamera(); });
+    socket.on("hideCamera", () => stopCamera());
+    return () => {
       socket.off("response"); socket.off("sleep"); socket.off("volume"); socket.off("systemStats");
+      socket.off("showCamera"); socket.off("hideCamera");
     };
-  }, []);
+  }, [startCamera, stopCamera, state]);
 
   useEffect(() => {
     if (text && !isProcessing && !isJarvisSpeaking) {
@@ -331,13 +339,15 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen w-full bg-[#020202] text-white overflow-hidden">
-      <AnimatedBackground state={state} />
-      
-      {/* System Monitor - Top Right with REAL data */}
-      <SystemMonitor state={state} stats={systemStats} />
+      <AnimatedBackground state={state} showCamera={showCamera} />
+
+      {/* System Monitor - hides when camera is on */}
+      <AnimatePresence>
+        {!showCamera && <SystemMonitor state={state} stats={systemStats} />}
+      </AnimatePresence>
 
       <AnimatePresence>
-        {isIdle && (
+        {isIdle && !showCamera && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             transition={{ delay: 0.5, duration: 0.8 }} className="absolute top-8 left-0 right-0 flex justify-center">
             <div className="text-center">
@@ -348,21 +358,42 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-        {isIdle ? (
-          <motion.div key="idle" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.5 }}>
-            <IdleJarvis />
-          </motion.div>
-        ) : (
-          <motion.div key="awake" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.5 }}>
+      {/* Full size core - always centered when no camera */}
+      {!showCamera && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          {isIdle ? (
+            <motion.div key="idle" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5 }}>
+              <IdleJarvis />
+            </motion.div>
+          ) : (
+            <motion.div key="awake" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5 }}>
+              <AwakeJarvis volume={volume} />
+            </motion.div>
+          )}
+        </div>
+      )}
+
+      {/* Mini core + Camera */}
+      {showCamera && (
+        <>
+          <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 0.68 }} transition={{ duration: 0.5 }} className="absolute bottom-8 right-8 z-40" style={{ transformOrigin: 'bottom right' }}>
             <AwakeJarvis volume={volume} />
           </motion.div>
-        )}
-      </div>
+          <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.5 }} className="absolute inset-0 z-20 flex items-center justify-center">
+            <div className="relative w-[90%] max-w-[1200px] aspect-video rounded-2xl overflow-hidden border border-orange-400/30" style={{ boxShadow: "inset 0 0 120px 60px rgba(0,0,0,0.8), 0 0 60px rgba(251,146,60,0.15)" }}>
+              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover pointer-events-none" />
+              <div className="absolute top-0 left-0 w-10 h-10 border-l-[3px] border-t-[3px] border-orange-400/40" />
+              <div className="absolute top-0 right-0 w-10 h-10 border-r-[3px] border-t-[3px] border-orange-400/40" />
+              <div className="absolute bottom-0 left-0 w-10 h-10 border-l-[3px] border-b-[3px] border-orange-400/40" />
+              <div className="absolute bottom-0 right-0 w-10 h-10 border-r-[3px] border-b-[3px] border-orange-400/40" />
+            </div>
+          </motion.div>
+        </>
+      )}
 
       <div className="absolute top-[calc(50%+320px)] left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
         <AnimatePresence>
-          {showResponse && !isProcessing && (
+          {showResponse && !isProcessing && !showCamera && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4 }}
               className={`px-6 py-3 rounded-2xl border max-w-lg text-center backdrop-blur-sm ${isIdle ? "bg-blue-500/10 border-blue-400/20" : "bg-orange-500/10 border-orange-400/20"}`}>
               <p className={`text-sm font-light ${isIdle ? "text-blue-300/90" : "text-orange-300/90"}`}>{response}</p>
@@ -380,7 +411,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      {!showResponse && !isProcessing && (
+      {!showResponse && !isProcessing && !showCamera && (
         <motion.div animate={{ opacity: [0.5, 0.9, 0.5] }} transition={{ duration: 2, repeat: Infinity }}
           className="absolute bottom-16 left-1/2 -translate-x-1/2 text-xs tracking-[0.4em] whitespace-nowrap">
           {isIdle ? <span className="text-blue-400/70">LISTENING FOR WAKE WORD</span> : <span className="text-orange-400/70">LISTENING FOR COMMANDS</span>}
