@@ -308,11 +308,6 @@ function AnimatedBackground({ state, showCamera }) {
             </motion.div>
           ))}
 
-          {/* Scan lines */}
-          <motion.div className="absolute left-0 right-0 h-[1px] bg-orange-400/20" animate={{ top: ["0%", "100%", "0%"] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} />
-          <motion.div className="absolute left-0 right-0 h-[1px] bg-orange-400/12" animate={{ top: ["100%", "0%", "100%"] }} transition={{ duration: 6, repeat: Infinity, ease: "linear", delay: 2 }} />
-          <motion.div className="absolute top-0 bottom-0 w-[1px] bg-orange-400/15" animate={{ left: ["0%", "100%", "0%"] }} transition={{ duration: 4.5, repeat: Infinity, ease: "linear", delay: 1 }} />
-
           {/* Corner brackets */}
           <motion.div className="absolute border-l-[3px] border-t-[3px] border-orange-400/40" style={{ left: "2%", top: "2%", width: "50px", height: "50px" }}
             animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
