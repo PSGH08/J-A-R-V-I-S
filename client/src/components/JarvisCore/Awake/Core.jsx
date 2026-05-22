@@ -113,7 +113,7 @@ export default function Core() {
         </svg>
       </div>
 
-      <h1 className="z-10 text-white text-center" style={{ 
+      <h1 className="z-10 text-white text-center select-none" style={{ 
         fontWeight: 900, 
         fontSize: '15px',
         letterSpacing: '0.25em',

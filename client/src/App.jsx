@@ -493,7 +493,7 @@ export default function App() {
   const isIdle = state === "idle";
 
   return (
-    <div className="relative min-h-screen w-full bg-[#020202] text-white overflow-hidden">
+    <div className="relative min-h-screen w-full bg-[#020202] text-white overflow-hidden select-none">
       <AnimatedBackground state={state} showCamera={showCamera} />
 
       <AnimatePresence>
@@ -548,7 +548,7 @@ export default function App() {
           {showResponse && !isProcessing && !showCamera && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4 }}
               className={`px-6 py-3 rounded-2xl border max-w-lg text-center backdrop-blur-sm ${isIdle ? "bg-blue-500/10 border-blue-400/20" : "bg-orange-500/10 border-orange-400/20"}`}>
-              <p className={`text-sm font-light ${isIdle ? "text-blue-300/90" : "text-orange-300/90"}`}>{response}</p>
+              <p className={`text-sm font-light select-none ${isIdle ? "text-blue-300/90" : "text-orange-300/90"}`}>{response}</p>
             </motion.div>
           )}
         </AnimatePresence>
