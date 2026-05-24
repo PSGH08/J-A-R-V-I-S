@@ -6,6 +6,7 @@ const { getTodaySchedule, getDaySchedule, getNextActivity } = require("../comman
 const { addNote, listNotes, deleteNote, clearNotes } = require("../commands/notes");
 const { addReminder, listReminders, startReminderChecker } = require("../commands/reminders");
 const { translate, localTranslate } = require("../commands/translate");
+const music = require("../commands/music");
 
 async function routeCommand(command, socket) {
   let result = { speech: "Command executed." };
@@ -174,6 +175,30 @@ async function routeCommand(command, socket) {
       result = { speech: browserRes?.speech || "Opening website" };
       break;
 
+    case "summarize_page":
+      try {
+        const { getOrCreateBrowser, summarizeCurrentPage } = require("../commands/browser");
+        const { page } = await getOrCreateBrowser();
+        const summary = await summarizeCurrentPage(page);
+        result = { speech: summary.speech };
+      } catch (err) {
+        console.error("Summarize error:", err);
+        result = { speech: "No browser page open. Try searching for something first." };
+      }
+      break;
+      
+    case "click_result":
+      try {
+        const { getOrCreateBrowser, clickResultNumber } = require("../commands/browser");
+        const { page } = await getOrCreateBrowser();
+        const clickRes = await clickResultNumber(page, command.position);
+        result = { speech: clickRes.speech };
+      } catch (err) {
+        console.error("Click result error:", err);
+        result = { speech: "Couldn't click that result." };
+      }
+      break;
+
     case "text_to_speech":
       result = { speech: command.text };
       if (command.followUp) {
@@ -187,21 +212,92 @@ async function routeCommand(command, socket) {
       }
       break;
 
-    case "open_spotify":
+    case "play_song":
       try {
-        const spotifyResult = await runBrowserAutomation({
-          type: "browser_automation",
-          url: command.url,
-          actions: []
-        });
-        if (!command.isFollowUp) {
-          result = { speech: spotifyResult?.speech || "Opening Spotify" };
-        }
+        // Use the imported music module, not a new require
+        const musicResult = await music.searchAndPlay(command.query, command.folder);
+        result = { speech: musicResult.speech };
       } catch (err) {
-        console.error("Failed to open Spotify:", err);
-        if (!command.isFollowUp) {
-          result = { speech: "Sorry, couldn't open Spotify" };
-        }
+        console.error("Music error:", err);
+        result = { speech: "Couldn't play that song." };
+      }
+      break;
+
+    case "play_dads_playlist":
+      try {
+        // Use the imported music module
+        const dadResult = await music.playDadsPlaylist();
+        result = { speech: dadResult.speech };
+      } catch (err) {
+        console.error("Dad's playlist error:", err);
+        result = { speech: "Couldn't play dad's playlist." };
+      }
+      break;
+      
+    case "play_playlist":
+      try {
+        // Use the imported music module
+        const playlistResult = await music.playPlaylist();
+        result = { speech: playlistResult.speech };
+      } catch (err) {
+        console.error("Playlist error:", err);
+        result = { speech: "Couldn't play the playlist." };
+      }
+      break;
+      
+    case "next_song":
+      try {
+        // Use the imported music module
+        const nextResult = await music.nextSong();
+        result = { speech: nextResult.speech };
+      } catch (err) {
+        console.error("Next song error:", err);
+        result = { speech: "Couldn't skip." };
+      }
+      break;
+      
+    case "previous_song":
+      try {
+        // Use the imported music module
+        const prevResult = await music.previousSong();
+        result = { speech: prevResult.speech };
+      } catch (err) {
+        console.error("Previous song error:", err);
+        result = { speech: "Couldn't go back." };
+      }
+      break;
+      
+    case "pause_music":
+    case "resume_music":
+      try {
+        // Use the imported music module
+        const pauseResult = await music.togglePause();
+        result = { speech: pauseResult.speech };
+      } catch (err) {
+        console.error("Pause/resume error:", err);
+        result = { speech: "Couldn't pause/resume." };
+      }
+      break;
+      
+    case "list_songs":
+      try {
+        // Use the imported music module
+        const listResult = music.listSongs();
+        result = { speech: listResult.speech };
+      } catch (err) {
+        console.error("List songs error:", err);
+        result = { speech: "Couldn't list songs." };
+      }
+      break;
+
+    case "stop_music":
+      try {
+        // Use the imported music module
+        music.stopMusic();
+        result = { speech: "Music stopped." };
+      } catch (err) {
+        console.error("Stop music error:", err);
+        result = { speech: "Couldn't stop music." };
       }
       break;
 

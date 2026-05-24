@@ -3,17 +3,16 @@ const path = require("path");
 const { exec } = require("child_process");
 const logger = require("../utils/logger");
 
-// Cache browser instance (reuse instead of creating new each time)
+// Cache browser instance
 let cachedBrowser = null;
 let cachedContext = null;
 let cachedPage = null;
 let lastUseTime = Date.now();
 
-// Keep browser alive for 30 seconds after last use
-const KEEP_ALIVE_MS = 30000;
+// Keep browser alive for 2 minutes after last use (so commands can chain)
+const KEEP_ALIVE_MS = 120000; // 2 minutes
 
 function getSimpleSelector(url) {
-  // Fast selectors without waiting
   if (url.includes("google.com")) {
     return 'textarea[name="q"], input[name="q"]';
   }
@@ -26,7 +25,7 @@ function getSimpleSelector(url) {
   return null;
 }
 
-// Ultra-fast method for simple URLs (uses Windows shell, no Playwright)
+// Ultra-fast method for simple URLs (uses Windows shell - your default Chrome)
 async function openUrlFast(url) {
   return new Promise((resolve) => {
     exec(`start ${url}`, (error) => {
@@ -34,18 +33,17 @@ async function openUrlFast(url) {
         logger.error(`Failed to open ${url}: ${error.message}`);
         resolve({ speech: `Failed to open ${url}` });
       } else {
-        logger.log(`Quick opened ${url}`);
-        resolve({ speech: `Opening ${url}` });
+        logger.log(`Quick opened ${url} in your Chrome`);
+        resolve({ speech: `Done! You can say "summarize" or "tell me what you see" to get results.` });
       }
     });
   });
 }
 
 async function getOrCreateBrowser() {
-  // Only create browser if we need it for actions
   if (cachedBrowser && cachedContext && cachedPage) {
     try {
-      await cachedPage.evaluate(() => true);
+      await cachedPage.evaluate(() => document.title);
       lastUseTime = Date.now();
       return { context: cachedContext, page: cachedPage };
     } catch (e) {
@@ -56,10 +54,10 @@ async function getOrCreateBrowser() {
     }
   }
   
-  // Create new browser instance only when needed
+  // Use your Chrome profile so you stay logged in
   const userDataDir = path.join(__dirname, "../../.browser-profile");
   
-  logger.log("Launching browser for advanced automation...");
+  logger.log("Launching browser with your profile (you'll stay logged in)...");
   
   cachedContext = await chromium.launchPersistentContext(userDataDir, {
     headless: false,
@@ -88,7 +86,7 @@ async function getOrCreateBrowser() {
   return { context: cachedContext, page: cachedPage };
 }
 
-// Clean up idle browser
+// Clean up idle browser - now 2 minutes
 setInterval(() => {
   if (cachedBrowser && (Date.now() - lastUseTime) > KEEP_ALIVE_MS) {
     logger.log("Closing idle browser...");
@@ -103,29 +101,32 @@ async function runBrowserAutomation({ url, actions = [] }) {
   const startTime = Date.now();
   
   try {
-    // For simple URL open (no actions) - use Windows shell (NO Playwright)
+    // For simple URL open (no actions) - use Windows shell (your Chrome)
     if (!actions || actions.length === 0) {
-      logger.log(`Opening ${url} in default browser`);
+      logger.log(`Opening ${url} in your default Chrome`);
       return await openUrlFast(url);
     }
     
-    // ONLY for complex actions, use Playwright
+    // For complex actions, use Playwright with your profile
     logger.log(`Advanced automation for: ${url}`);
     const { page } = await getOrCreateBrowser();
     
     await page.goto(url, {
-      waitUntil: "commit",
-      timeout: 5000
+      waitUntil: "domcontentloaded",
+      timeout: 8000
     }).catch(async () => {
       await page.goto(url, {
-        waitUntil: "domcontentloaded",
-        timeout: 5000
+        waitUntil: "commit",
+        timeout: 8000
       });
     });
     
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
     
     // Cookie popup handling
+    try {
+      await page.click('button:has-text("Accept all")', { timeout: 1000 });
+    } catch {}
     try {
       await page.click('button:has-text("Accept")', { timeout: 1000 });
     } catch {}
@@ -174,7 +175,7 @@ async function runBrowserAutomation({ url, actions = [] }) {
     const duration = Date.now() - startTime;
     logger.log(`Browser task completed in ${duration}ms`);
     
-    return { speech: `Opening ${url}` };
+    return { speech: `Done!` };
     
   } catch (err) {
     const duration = Date.now() - startTime;
@@ -187,7 +188,156 @@ async function runBrowserAutomation({ url, actions = [] }) {
       cachedPage = null;
     }
     
-    return { speech: `Sorry, couldn't open ${url}` };
+    return { speech: `Sorry, couldn't do that.` };
+  }
+}
+
+// Summarize current page
+async function summarizeCurrentPage(page) {
+  try {
+    const title = await page.title();
+    const url = page.url();
+    
+    let summary = '';
+    
+    if (url.includes('google.com/search')) {
+      // Extract Google search results
+      const results = await page.evaluate(() => {
+        const searchResults = [];
+        const resultDivs = document.querySelectorAll('div.g, div[data-hveid], div.MjjYud');
+        
+        resultDivs.forEach((div, index) => {
+          if (index >= 5) return;
+          
+          const titleEl = div.querySelector('h3');
+          const linkEl = div.querySelector('a[href^="http"]');
+          const snippetEl = div.querySelector('div.VwiC3b, span.aCOpRe, div[data-sncf], span.st');
+          
+          if (titleEl && linkEl) {
+            searchResults.push({
+              title: titleEl.innerText,
+              url: linkEl.href,
+              snippet: snippetEl ? snippetEl.innerText.substring(0, 150) : 'No description'
+            });
+          }
+        });
+        
+        return searchResults;
+      });
+      
+      if (results.length > 0) {
+        summary = `Here's what I found:\n\n`;
+        results.forEach((r, i) => {
+          summary += `${i + 1}. ${r.title}\n   ${r.snippet}\n\n`;
+        });
+        summary += `Say "click first result" or "click page 2" to navigate.`;
+      } else {
+        summary = `I'm on Google results but couldn't read them.`;
+      }
+    } else if (url === 'about:blank') {
+      summary = "No page is loaded. Try searching for something first.";
+    } else {
+      const content = await page.evaluate(() => {
+        const metaDesc = document.querySelector('meta[name="description"]');
+        if (metaDesc) return metaDesc.getAttribute('content');
+        const firstP = document.querySelector('p');
+        if (firstP) return firstP.innerText.substring(0, 300);
+        return document.body ? document.body.innerText.substring(0, 200) : '';
+      });
+      summary = `Page: ${title}\n\n${content}`;
+    }
+    
+    return { speech: summary };
+  } catch (error) {
+    logger.error(`Summarize failed: ${error.message}`);
+    return { speech: "I couldn't read the page. Make sure a page is loaded." };
+  }
+}
+
+// Click Google page number
+async function clickGooglePage(page, pageNumber) {
+  try {
+    const currentUrl = page.url();
+    
+    if (!currentUrl.includes('google.com/search')) {
+      return { speech: "You need to be on a Google search results page first." };
+    }
+    
+    const clicked = await page.evaluate((num) => {
+      // Try aria-label
+      let links = document.querySelectorAll(`a[aria-label="Page ${num}"]`);
+      if (links.length > 0) {
+        links[0].click();
+        return true;
+      }
+      
+      // Try text content in pagination
+      const allLinks = document.querySelectorAll('a');
+      for (const link of allLinks) {
+        if (link.textContent.trim() === String(num) && link.href.includes('start=')) {
+          link.click();
+          return true;
+        }
+        const span = link.querySelector('span');
+        if (span && span.textContent.trim() === String(num)) {
+          link.click();
+          return true;
+        }
+      }
+      
+      return false;
+    }, pageNumber);
+    
+    if (clicked) {
+      await page.waitForTimeout(1500);
+      return { speech: `Navigated to page ${pageNumber}` };
+    } else {
+      return { speech: `Couldn't find page ${pageNumber}` };
+    }
+  } catch (error) {
+    logger.error(`Click page failed: ${error.message}`);
+    return { speech: `Failed to navigate to page ${pageNumber}` };
+  }
+}
+
+// Click result number
+async function clickResultNumber(page, position) {
+  try {
+    const currentUrl = page.url();
+    
+    if (!currentUrl.includes('google.com/search')) {
+      return { speech: "You need to be on a Google search results page first." };
+    }
+    
+    const clicked = await page.evaluate((pos) => {
+      const containers = document.querySelectorAll('div.g, div[data-hveid], div.MjjYud');
+      const mainLinks = [];
+      
+      containers.forEach(container => {
+        const link = container.querySelector('a[href^="http"]:not([href*="google.com"])');
+        const title = container.querySelector('h3');
+        if (link && title && !mainLinks.includes(link)) {
+          mainLinks.push(link);
+        }
+      });
+      
+      if (mainLinks.length >= pos) {
+        mainLinks[pos - 1].click();
+        return true;
+      }
+      
+      return false;
+    }, position);
+    
+    if (clicked) {
+      await page.waitForTimeout(1500);
+      return { speech: `Clicked result ${position}` };
+    } else {
+      return { speech: `Couldn't find result ${position}` };
+    }
+  } catch (error) {
+    logger.error(`Click result failed: ${error.message}`);
+    return { speech: `Failed to click result ${position}` };
   }
 }
 
@@ -198,4 +348,10 @@ process.on('exit', () => {
   }
 });
 
-module.exports = { runBrowserAutomation };
+module.exports = { 
+  runBrowserAutomation,
+  getOrCreateBrowser,
+  summarizeCurrentPage,
+  clickGooglePage,
+  clickResultNumber
+};

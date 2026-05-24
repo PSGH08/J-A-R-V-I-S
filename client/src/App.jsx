@@ -6,6 +6,7 @@ import { useVoice } from "./hooks/useVoice";
 import IdleJarvis from "./components/JarvisCore/Idle/IdleJarvis";
 import AwakeJarvis from "./components/JarvisCore/Awake/AwakeJarvis";
 import { useMemoryCleanup } from "./hooks/useMemoryCleanup";
+import MusicWidget from "./widgets/MusicWidget";
 
 function SystemMonitor({ state, stats }) {
   const isIdle = state === "idle";
@@ -569,6 +570,8 @@ export default function App() {
           {isIdle ? <span className="text-blue-400/70">LISTENING FOR WAKE WORD</span> : <span className="text-orange-400/70">LISTENING FOR COMMANDS</span>}
         </motion.div>
       )}
+
+      <MusicWidget />
     </div>
   );
 }

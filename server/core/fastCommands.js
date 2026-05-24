@@ -281,6 +281,37 @@ function parseFastCommand(text) {
     return { type: "browser_automation", url: `https://google.com/search?q=${query}`, actions: [] };
   }
 
+  // ADD THESE NEW COMMANDS AFTER THE SEARCH SECTION:
+  
+  // "Tell me what you see" - summarize current page
+  if (input.includes("summarize this page") || 
+      input.includes("what's on this page") ||
+      input.includes("what is on this page") ||
+      input.includes("read the page") ||
+      input.includes("read this page") ||
+      input.includes("describe the page") ||
+      input.includes("what page is this")) {
+    return { type: "summarize_page" };
+  }
+
+  // Click first/second/third page (clicks that result number)
+  // "click first page" = click 1st search result
+  // "click page 2" = click 2nd search result
+  const clickMatch = input.match(/click\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th|\d+)\s*(?:page|result|link|one)?/i);
+  if (clickMatch) {
+    const wordToNum = {
+      'first': 1, '1st': 1,
+      'second': 2, '2nd': 2,
+      'third': 3, '3rd': 3,
+      'fourth': 4, '4th': 4,
+      'fifth': 5, '5th': 5
+    };
+    const num = wordToNum[clickMatch[1].toLowerCase()] || parseInt(clickMatch[1]);
+    if (num && num >= 1 && num <= 10) {
+      return { type: "click_result", position: num };
+    }
+  }
+
   // ============================================
   // SCHEDULE COMMANDS
   // ============================================
@@ -693,45 +724,99 @@ function parseFastCommand(text) {
 
 
   // ============================================
-  // PRIORITY 11: Spotify Playlists
+  // MUSIC COMMANDS (Local MP3)
   // ============================================
-  
-  if (
-    input.includes("more alcohol") ||
-    input.includes("more alchohol") ||
-    input.includes("alcohol please") ||
-    input.includes("play alcohol") ||
-    input.includes("alcohol playlist")
-  ) {
-    return { 
-      type: "text_to_speech", 
-      text: "Ah, I see how it is. lets get SAD! ",
-      followUp: {
-        type: "open_spotify",
-        url: "https://open.spotify.com/playlist/1Rs8ACfxPH82qu3XpKofHP?si=F6P5YCHwRMi5qkHI3bJDyg"
-      }
-    };
-  }
 
-  if (
-    input.includes("time to code") ||
-    input.includes("time to work") ||
-    input.includes("time to go to work") ||
-    input.includes("coding time") ||
-    input.includes("work time") ||
-    input.includes("let's code") ||
-    input.includes("start coding")
-  ) {
-    return { 
-      type: "text_to_speech", 
-      text: "Let's get in the zone! Playing your coding playlist.",
-      followUp: {
-        type: "open_spotify",
-        url: "https://open.spotify.com/playlist/0S78UVuLW857NQ2FaUYwTD?si=LgRw_d02SMmtHtjnivLO1Q"
-      }
-    };
+  // DAD'S PLAYLIST - Check FIRST
+  if (input.includes("play dad's playlist") || 
+      input.includes("play dads playlist") ||
+      input.includes("play dad playlist") ||
+      input.includes("dad's playlist") ||
+      input.includes("dads playlist") ||
+      input === "play dad") {
+    return { type: "play_dads_playlist" };
   }
   
+  // Play Tony Stark playlist
+  if (input.includes("play the playlist") || 
+      input.includes("play my playlist") ||
+      input.includes("play tony stark playlist") ||
+      input.includes("play tony's playlist") ||
+      input.includes("play my music") ||
+      input.includes("shuffle playlist") ||
+      input === "play playlist" ||
+      input === "play tony") {
+    return { type: "play_playlist" };
+  }
+  
+  // Next song / Skip - BEFORE play song checks
+  if (input.includes("next song") || 
+      input === "skip" || 
+      input.includes("skip this") ||
+      input.includes("skip song") ||
+      input.includes("play next")) {
+    return { type: "next_song" };
+  }
+  
+  // Previous song - BEFORE play song checks
+  if (input.includes("previous song") || 
+      input.includes("last song") ||
+      input.includes("go back") ||
+      input.includes("play previous")) {
+    return { type: "previous_song" };
+  }
+  
+  // Stop music
+  if (input.includes("stop music") ||
+      input.includes("close music") ||
+      input.includes("hide music")) {
+    return { type: "stop_music" };
+  }
+  
+  // Pause
+  if (input === "pause" || 
+      input.includes("pause music") ||
+      input.includes("pause song")) {
+    return { type: "pause_music" };
+  }
+  
+  // Resume
+  if (input === "resume" || 
+      input.includes("resume music") ||
+      input.includes("unpause") ||
+      input.includes("continue music")) {
+    return { type: "resume_music" };
+  }
+  
+  // Play a specific song from a specific playlist
+  const playSongInPlaylistMatch = input.match(/(?:play|put on)\s+(?:song\s+)?(.+?)\s+(?:in|from|on)\s+(?:my\s+)?(tony|tony's|dad's|dad)\s*(?:playlist)?/i);
+  if (playSongInPlaylistMatch) {
+    const query = playSongInPlaylistMatch[1].trim();
+    const playlist = playSongInPlaylistMatch[2].toLowerCase();
+    const folder = (playlist === 'dad' || playlist === "dad's") ? 'dads' : 'tony';
+    return { type: "play_song", query: query, folder: folder };
+  }
+  
+  // Play a specific song (searches both playlists) - LAST
+  const playSongMatch = input.match(/(?:play|put on)\s+(?:song\s+)?(.+)/i);
+  if (playSongMatch && 
+      !input.includes("playlist") && 
+      !input.includes("my music") &&
+      !input.includes("next") &&
+      !input.includes("previous") &&
+      !input.includes("skip")) {
+    const query = playSongMatch[1].trim();
+    return { type: "play_song", query: query };
+  }
+  
+  // List songs
+  if (input.includes("what songs") || 
+      input.includes("list songs") ||
+      input.includes("my songs") ||
+      input.includes("what music") ||
+      input.includes("what's in my playlist")) {
+    return { type: "list_songs" };
+  }
   // ============================================
   // PRIORITY 12: Camera Commands
   // ============================================

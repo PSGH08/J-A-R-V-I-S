@@ -9,6 +9,7 @@ const { SYSTEM_PROMPT } = require("./core/schema");
 const { routeCommand } = require("./core/commandRouter");
 const { startReminderChecker } = require("./commands/reminders");
 const { getSystemStats } = require("./core/systemStats");
+const { setMusicSocket } = require("./commands/music");
 
 const app = express();
 
@@ -36,6 +37,28 @@ app.use(cors());
 app.use(express.json());
 
 io.on("connection", (socket) => {
+
+  setMusicSocket(io); // Use io to broadcast to all clients
+
+  socket.on("musicCommand", async (cmd) => {
+    const { nextSong, previousSong, togglePause, stopMusic } = require("./commands/music");
+    let result;
+    
+    switch (cmd) {
+      case "next": result = await nextSong(); break;
+      case "previous": result = await previousSong(); break;
+      case "pause": result = await togglePause(); break;
+      case "resume": result = await togglePause(); break;
+      case "stop": 
+        stopMusic();
+        socket.emit("musicState", { playing: false });
+        break;
+    }
+    
+    if (result) {
+      socket.emit("response", { text: result.speech });
+    }
+  });
 
   startReminderChecker(socket);
 
