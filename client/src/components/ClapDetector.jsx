@@ -8,7 +8,7 @@ export default function ClapDetector() {
   const animationFrameRef = useRef(null);
   const streamRef = useRef(null);
   
-  const CLAP_THRESHOLD = 0.5;
+  const CLAP_THRESHOLD = 0.7;
   const CLAP_MIN_FREQUENCY = 800;
   const CLAP_MAX_FREQUENCY = 5000;
   const COOLDOWN_MS = 300;

@@ -9,7 +9,7 @@ const { SYSTEM_PROMPT } = require("./core/schema");
 const { routeCommand } = require("./core/commandRouter");
 const { startReminderChecker } = require("./commands/reminders");
 const { getSystemStats } = require("./core/systemStats");
-const { setMusicSocket } = require("./commands/music");
+const { setMusicSocket, setMusicStateCallback } = require("./commands/music");
 const clapDetector = require("./services/clapDetector");
 
 const app = express();
@@ -22,10 +22,17 @@ const MAX_HISTORY = 10; // Keep last 10 exchanges
 
 // Wake word state
 let wakeWordActive = false;
+let isMusicPlaying = false;  // NEW: Track if music is playing
 
 function resetWakeWord() {
   wakeWordActive = false;
   console.log("Wake word reset - say Jarvis again");
+}
+
+// Add this function near the top
+function setMusicPlaying(playing) {
+  isMusicPlaying = playing;
+  console.log(`🎵 Music playing state: ${isMusicPlaying ? "PLAYING" : "STOPPED"}`);
 }
 
 const io = new Server(server, {
@@ -40,6 +47,8 @@ app.use(express.json());
 io.on("connection", (socket) => {
 
   setMusicSocket(io); // Use io to broadcast to all clients
+
+  setMusicStateCallback(setMusicPlaying);
 
   socket.on("musicCommand", async (cmd) => {
     const { nextSong, previousSong, togglePause, stopMusic } = require("./commands/music");
@@ -133,6 +142,49 @@ io.on("connection", (socket) => {
       'jarvis report in', 'jarvis i\'m back', 'jarvis good to go'
     ];    
     const isWake = wakeWords.some(w => lowerText === w || lowerText.startsWith(w + ' '));
+
+    if (isMusicPlaying && !isWake) {
+      // ALL music commands that should work while music is playing
+      const musicCommands = [
+        // Play commands
+        'play', 'play song', 'play music', 'put on',
+        
+        // Playlist commands
+        'dad\'s playlist', 'dads playlist', 'dad playlist',
+        'tony stark playlist', 'tony\'s playlist', 'my playlist',
+        'the playlist', 'my music', 'shuffle playlist',
+        
+        // Navigation commands
+        'next', 'next song', 'skip', 'skip this', 'skip song', 'play next',
+        'previous', 'previous song', 'last song', 'go back', 'play previous',
+        
+        // Control commands
+        'pause', 'pause music', 'pause song',
+        'resume', 'resume music', 'unpause', 'continue music',
+        'stop', 'stop music', 'close music', 'hide music',
+        
+        // Info commands
+        'what\'s playing', 'what song', 'current song', 'song name', 'now playing',
+        'what songs', 'list songs', 'my songs', 'what music', 'what\'s in my playlist'
+      ];
+      
+      const isMusicCommand = musicCommands.some(cmd => 
+        lowerText.includes(cmd) || lowerText === cmd
+      );
+      
+      // Also check if it's a "play [song name]" command
+      const isPlaySongCommand = lowerText.match(/^(?:play|put on)\s+(.+)/) && 
+        !lowerText.includes('playlist') && 
+        !lowerText.includes('music');
+      
+      if (!isMusicCommand && !isPlaySongCommand) {
+        console.log(`🎵 Music playing - ignoring non-music command: "${text}"`);
+        socket.emit("response", { 
+          text: "Music is playing sir. I can only handle music commands right now. Say 'pause', 'next', 'stop music', or play a specific song."
+        });
+        return;
+      }
+    }
     
     if (!wakeWordActive && !isWake) {
       console.log("Wake word not active. Ignoring.");

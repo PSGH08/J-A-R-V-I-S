@@ -19,10 +19,10 @@ let songStartTime = null;
 let totalSongDurationMs = 0;    
 let musicSocket = null;
 let elapsedInterval = null;
+let onMusicStateChange = null;  // ONLY DECLARE ONCE
 
-// Set socket for frontend communication
-function setMusicSocket(socket) {
-  musicSocket = socket;
+function setMusicStateCallback(callback) {
+  onMusicStateChange = callback;
 }
 
 function emitMusicState() {
@@ -270,9 +270,13 @@ function playSong(songFile, folder) {
     scheduleNextSong((durationSeconds + 2) * 1000);
     
     isPlaying = true;
+
+    // Notify that music started playing
+    if (onMusicStateChange) onMusicStateChange(true);
+
     startElapsedTimer();
     emitMusicState();
-    
+
     resolve({ speech: `Playing ${songFile.replace('.mp3', '')}` });
   });
 }
@@ -476,10 +480,18 @@ async function stopMusic(clearTimer = true) {
     currentPlayer = null;
   }
   isPlaying = false;
+
+  // Notify that music stopped
+  if (onMusicStateChange) onMusicStateChange(false);
   
   if (clearTimer && musicSocket) {
     musicSocket.emit("musicState", { playing: false, paused: false });
   }
+}
+
+// Set socket for frontend communication
+function setMusicSocket(socket) {
+  musicSocket = socket;
 }
 
 // Search and play
@@ -527,6 +539,7 @@ function listSongs() {
   return { speech: `${folderName}: ${songs.length} songs` };
 }
 
+// Module exports
 module.exports = {
   searchAndPlay,
   playPlaylist,
@@ -536,5 +549,6 @@ module.exports = {
   togglePause,
   stopMusic,
   listSongs,
-  setMusicSocket
+  setMusicSocket,
+  setMusicStateCallback
 };
