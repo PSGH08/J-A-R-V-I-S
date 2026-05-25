@@ -10,6 +10,7 @@ const { routeCommand } = require("./core/commandRouter");
 const { startReminderChecker } = require("./commands/reminders");
 const { getSystemStats } = require("./core/systemStats");
 const { setMusicSocket } = require("./commands/music");
+const clapDetector = require("./services/clapDetector");
 
 const app = express();
 
@@ -60,6 +61,40 @@ io.on("connection", (socket) => {
     }
   });
 
+  clapDetector.setClapSocket(socket);
+
+  socket.on("clapWakeUp", async () => {
+    // Only process if Jarvis is locked (same as wake word logic)
+    if (!wakeWordActive) {
+      console.log("👏👏 Double clap detected - waking Jarvis");
+      
+      // IMPORTANT: Tell frontend that Jarvis is waking up
+      socket.emit("wake");
+      
+      // Set wake word active
+      wakeWordActive = true;      
+      
+      // Use the EXACT SAME parseFastCommand to get the greeting
+      const fastCommand = parseFastCommand("jarvis");
+      
+      if (fastCommand) {
+        
+        const result = await routeCommand(fastCommand, socket);
+        
+        socket.emit("response", {
+          text: result.speech || "Done."
+        });
+        
+      }
+    } else {
+      console.log("Clap detected but Jarvis already awake");
+      // Optional: Send a quick "I'm already awake" response
+      socket.emit("response", {
+        text: "I'm already awake, sir."
+      });
+    }
+  });
+
   startReminderChecker(socket);
 
   console.log("Client connected:", socket.id);
@@ -79,8 +114,9 @@ io.on("connection", (socket) => {
   });
 
   socket.on("resetWakeWord", () => {
-  resetWakeWord();
-  socket.emit("response", { text: "Wake word reset sir. Say Jarvis when you need me." });
+    resetWakeWord();
+    socket.emit("sleep"); // Make sure this is emitted
+    socket.emit("response", { text: "Wake word reset sir. Say Jarvis when you need me." });
   });
 
   socket.on("command", async (text) => {
@@ -105,6 +141,7 @@ io.on("connection", (socket) => {
     
     if (isWake) {
       wakeWordActive = true;
+      socket.emit("wake"); // Add this line
       console.log("Wake word activated!");
     }
 
@@ -118,37 +155,22 @@ io.on("connection", (socket) => {
       // FAST COMMANDS
       // =================================
 
-      console.log("Running fast parser...");
-
       const fastCommand = parseFastCommand(text);
 
-      console.log("Fast parser result:", fastCommand);
-
       if (fastCommand) {
-
-        console.log("Executing fast command...");
 
       // Handle lock command directly
       if (fastCommand.type === "lock_jarvis") {
         wakeWordActive = false;
         socket.emit("sleep");
-        console.log("Wake word reset via lock command");
       }
 
         // PASS THE SOCKET HERE
         const result = await routeCommand(fastCommand, socket);
 
-        console.log("Route result:", result);
-
-        console.log("Sending response to frontend...");
-
         socket.emit("response", {
           text: result.speech || "Done."
         });
-
-        console.log("Response emitted");
-
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
         return;
       }
@@ -157,7 +179,6 @@ io.on("connection", (socket) => {
       // AI FALLBACK
       // =================================
 
-      console.log("No fast command found");
       socket.emit("response", {
         text: "Thinking..."
       });
@@ -189,8 +210,6 @@ io.on("connection", (socket) => {
         return;
       }
 
-      console.log("AI RAW:", aiResponse);
-
       if (!aiResponse) {
 
         socket.emit("response", {
@@ -204,9 +223,7 @@ io.on("connection", (socket) => {
 
       try {
         command = JSON.parse(aiResponse);
-        console.log("Parsed AI JSON:", command);
       } catch (parseError) {
-        console.log("Attempting to fix malformed JSON...");
         
         let fixedJson = aiResponse.trim();
         
@@ -223,13 +240,11 @@ io.on("connection", (socket) => {
         
         try {
           command = JSON.parse(fixedJson);
-          console.log("Fixed JSON:", command);
         } catch (secondError) {
           // Last resort: extract text with regex
           const textMatch = aiResponse.match(/"text":\s*"([^"]+)"/);
           if (textMatch) {
             command = { type: "text_response", text: textMatch[1] };
-            console.log("Extracted text:", command);
           } else {
             socket.emit("response", { text: aiResponse });
             return;
@@ -237,12 +252,8 @@ io.on("connection", (socket) => {
         }
       }
 
-      console.log("Routing AI command...");
-
       // PASS THE SOCKET HERE TOO
       const result = await routeCommand(command, socket);
-
-      console.log("AI Route Result:", result);
 
       socket.emit("response", {
         text: result.speech || "Done."
@@ -261,10 +272,6 @@ io.on("connection", (socket) => {
         history.shift();
       }
       
-      console.log(`History: ${history.length} exchanges stored`);
-
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-
     } catch (err) {
 
       console.error("BACKEND ERROR");
@@ -274,7 +281,6 @@ io.on("connection", (socket) => {
         text: "Something went wrong."
       });
 
-      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
     }
 
   });

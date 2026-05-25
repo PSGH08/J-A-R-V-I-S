@@ -7,6 +7,7 @@ import IdleJarvis from "./components/JarvisCore/Idle/IdleJarvis";
 import AwakeJarvis from "./components/JarvisCore/Awake/AwakeJarvis";
 import { useMemoryCleanup } from "./hooks/useMemoryCleanup";
 import MusicWidget from "./widgets/MusicWidget";
+import ClapDetector from "./components/ClapDetector";
 
 function SystemMonitor({ state, stats }) {
   const isIdle = state === "idle";
@@ -470,31 +471,45 @@ export default function App() {
       else await speak(d.text);
       setIsProcessing(false);
     });
-    socket.on("sleep", () => { setState("idle"); setHasBeenAwakened(false); setShowResponse(false); setResponse(""); stopCamera(); });
+    
+    socket.on("sleep", () => { 
+      setState("idle"); 
+      setHasBeenAwakened(false); 
+      setShowResponse(false); 
+      setResponse(""); 
+      stopCamera(); 
+    });
+    
+    // ADD THIS WAKE HANDLER:
+    socket.on("wake", () => {
+      console.log("Wake event received - activating Jarvis");
+      setState("awake");
+      setHasBeenAwakened(true);
+    });
+    
     socket.on("volume", (vol) => setVolume(vol));
     socket.on("systemStats", (stats) => setSystemStats(stats));
     socket.on("showCamera", () => { if (state === "awake") startCamera(); });
     socket.on("hideCamera", () => stopCamera());
+    
     return () => {
-      socket.off("response"); socket.off("sleep"); socket.off("volume"); socket.off("systemStats");
-      socket.off("showCamera"); socket.off("hideCamera");
+      socket.off("response"); 
+      socket.off("sleep"); 
+      socket.off("wake");  // Add this
+      socket.off("volume"); 
+      socket.off("systemStats");
+      socket.off("showCamera"); 
+      socket.off("hideCamera");
     };
   }, [startCamera, stopCamera, state]);
-
-  useEffect(() => {
-    if (text && !isProcessing && !isJarvisSpeaking) {
-      if (/jarvis/i.test(text)) {
-        if (!hasBeenAwakened) { setHasBeenAwakened(true); setState("awake"); }
-        const command = text.replace(/jarvis/i, "").trim();
-        if (command) socket.emit("command", command);
-      }
-    }
-  }, [text, isProcessing, isJarvisSpeaking]);
 
   const isIdle = state === "idle";
 
   return (
     <div className="relative min-h-screen w-full bg-[#020202] text-white overflow-hidden select-none">
+
+      <ClapDetector />
+
       <AnimatedBackground state={state} showCamera={showCamera} />
 
       <AnimatePresence>
