@@ -1,3 +1,5 @@
+// server/commands/systemControl.js
+// System operations: file management, process control, volume, screenshots, and safe command execution
 const { exec } = require("child_process");
 const { promisify } = require("util");
 const fs = require("fs").promises;
@@ -6,19 +8,26 @@ const os = require("os");
 const execPromise = promisify(exec);
 const logger = require("../utils/logger");
 
-// SAFE COMMANDS LIST - These are blocked completely
+// Patterns for commands that are blocked for safety
 const BLOCKED_COMMANDS = [
   /format/i, /del \/f/i, /rd \/s/i, /rmdir \/s/i,
   /delete system32/i, /delete windows/i, /format c:/i,
   /shutdown \/r/i, /shutdown \/s/i, /shutdown \/p/i
 ];
 
-// Check if command is dangerous
+// Critical system processes that cannot be killed
+const CRITICAL_PROCESSES = ["svchost", "csrss", "winlogon", "services", "lsass", "wininit"];
+
+const NIRCMD_PATH = ".\\nircmd.exe";
+const MAX_VOLUME = 65535;
+const VOLUME_SCALE = 655.35;
+
+// Checks if a command matches any blocked pattern
 function isDangerousCommand(command) {
   return BLOCKED_COMMANDS.some(pattern => pattern.test(command));
 }
 
-// Execute PowerShell command safely
+// Executes a PowerShell script with optional admin privileges
 async function runPowerShell(script, requiresAdmin = false) {
   try {
     const adminFlag = requiresAdmin ? "-NoProfile -ExecutionPolicy Bypass " : "";
@@ -31,18 +40,18 @@ async function runPowerShell(script, requiresAdmin = false) {
   }
 }
 
-// ============ FILE OPERATIONS ============
-
+// Resolves a path, defaulting relative paths to user's home directory
 function resolvePath(inputPath) {
   let cleanPath = inputPath.replace(/^["']|["']$/g, '');
   
-  // If no drive letter and no leading slash, treat as relative to home
   if (!cleanPath.match(/^[a-zA-Z]:/) && !cleanPath.startsWith('/') && !cleanPath.startsWith('\\')) {
     cleanPath = path.join(os.homedir(), cleanPath);
   }
   
   return path.resolve(cleanPath);
 }
+
+// ============ FILE OPERATIONS ============
 
 async function listDirectory({ path: dirPath }) {
   try {
@@ -61,7 +70,6 @@ async function listDirectory({ path: dirPath }) {
 async function createFile({ path: filePath, content = "" }) {
   try {
     const fullPath = resolvePath(filePath);
-    // Create parent directories if needed
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
     await fs.writeFile(fullPath, content);
     return { success: true, speech: `Created file at ${fullPath}` };
@@ -121,13 +129,11 @@ async function listProcesses() {
 }
 
 async function killProcess({ name, pid }) {
+  if (name && CRITICAL_PROCESSES.includes(name.toLowerCase())) {
+    return { success: false, speech: "I cannot kill critical system processes." };
+  }
+  
   if (name) {
-    // Safety: Don't kill critical system processes
-    const criticalProcesses = ["svchost", "csrss", "winlogon", "services", "lsass", "wininit"];
-    if (criticalProcesses.includes(name.toLowerCase())) {
-      return { success: false, speech: "I cannot kill critical system processes." };
-    }
-    
     const result = await runPowerShell(`Stop-Process -Name "${name}" -Force`);
     if (result.success) {
       return { success: true, speech: `Stopped process ${name}` };
@@ -171,7 +177,9 @@ async function getSystemInfo() {
 
 async function getDiskSpace() {
   try {
-    const { stdout } = await execPromise(`powershell -Command "Get-PSDrive -PSProvider FileSystem | Where-Object {$_.Used -gt 0} | ForEach-Object { Write-Output ($_.Name + ',' + [math]::Round($_.Free/1GB,1) + ',' + [math]::Round(($_.Used+$_.Free)/1GB,1) + ',' + [math]::Round(($_.Free/($_.Used+$_.Free))*100,0)) }"`);
+    const { stdout } = await execPromise(
+      `powershell -Command "Get-PSDrive -PSProvider FileSystem | Where-Object {$_.Used -gt 0} | ForEach-Object { Write-Output ($_.Name + ',' + [math]::Round($_.Free/1GB,1) + ',' + [math]::Round(($_.Used+$_.Free)/1GB,1) + ',' + [math]::Round(($_.Free/($_.Used+$_.Free))*100,0)) }"`
+    );
     
     const lines = stdout.trim().split('\n').filter(l => l.trim() && l.includes(','));
     
@@ -183,10 +191,7 @@ async function getDiskSpace() {
     for (const line of lines) {
       const parts = line.split(',');
       if (parts.length >= 4) {
-        const drive = parts[0];
-        const freeGB = parts[1];
-        const totalGB = parts[2];
-        const percentFree = parts[3];
+        const [drive, freeGB, totalGB, percentFree] = parts;
         speech += `${drive} drive: ${freeGB}GB free of ${totalGB}GB (${percentFree}% free). `;
       }
     }
@@ -197,10 +202,9 @@ async function getDiskSpace() {
   }
 }
 
-// ============ EXECUTE COMMANDS (with safety) ============
+// ============ SAFE COMMAND EXECUTION ============
 
 async function executeCommand({ command }) {
-  // Check for dangerous commands
   if (isDangerousCommand(command)) {
     logger.warn(`Blocked dangerous command: ${command}`);
     return { 
@@ -228,17 +232,12 @@ async function executeCommand({ command }) {
 
 // ============ VOLUME CONTROL ============
 
-const nircmdPath = path.join(__dirname, "nircmd.exe");
-
 async function setVolume({ level }) {
   try {
     const volume = Math.min(100, Math.max(0, parseInt(level)));
-    const nircmdCmd = `.\\nircmd.exe`;
+    const volumeValue = Math.floor(volume * VOLUME_SCALE);
     
-    // Calculate volume value (0-65535 range)
-    const volumeValue = Math.floor(volume * 655.35);
-    
-    await execPromise(`${nircmdCmd} setsysvolume ${volumeValue}`);
+    await execPromise(`${NIRCMD_PATH} setsysvolume ${volumeValue}`);
     
     logger.log(`🔊 Volume set to ${volume}%`);
     return { success: true, speech: `Volume set to ${volume} percent` };
@@ -251,8 +250,7 @@ async function setVolume({ level }) {
 
 async function muteVolume() {
   try {
-    const nircmdCmd = `.\\nircmd.exe`;
-    await execPromise(`${nircmdCmd} mutesysvolume 1`);
+    await execPromise(`${NIRCMD_PATH} mutesysvolume 1`);
     return { success: true, speech: "Volume muted" };
   } catch (error) {
     return { success: false, speech: "Could not mute volume" };
@@ -261,8 +259,7 @@ async function muteVolume() {
 
 async function unmuteVolume() {
   try {
-    const nircmdCmd = `.\\nircmd.exe`;
-    await execPromise(`${nircmdCmd} mutesysvolume 0`);
+    await execPromise(`${NIRCMD_PATH} mutesysvolume 0`);
     return { success: true, speech: "Volume unmuted" };
   } catch (error) {
     return { success: false, speech: "Could not unmute" };
@@ -277,17 +274,15 @@ async function takeScreenshot({ savePath }) {
       savePath = `C:\\Users\\parsa\\Pictures\\screenshot_${Date.now()}.png`;
     }
     
-    // Ensure directory exists
     const dir = path.dirname(savePath);
     await fs.mkdir(dir, { recursive: true });
     
-    const nircmdCmd = `.\\nircmd.exe`;
-    await execPromise(`${nircmdCmd} savescreenshot "${savePath}"`);
+    await execPromise(`${NIRCMD_PATH} savescreenshot "${savePath}"`);
     
     return { success: true, speech: `Screenshot saved to Pictures folder` };
     
   } catch (error) {
-    // Fallback to PowerShell
+    // Fallback to PowerShell screenshot method
     try {
       const psScript = `
         Add-Type -AssemblyName System.Windows.Forms
@@ -309,29 +304,18 @@ async function takeScreenshot({ savePath }) {
 }
 
 module.exports = {
-  // File operations
   listDirectory,
   createFile,
   readFile,
   deleteFile,
-  
-  // Process management
   listProcesses,
   killProcess,
   startProcess,
-  
-  // System info
   getSystemInfo,
   getDiskSpace,
-  
-  // Volume control
   setVolume,
   muteVolume,
   unmuteVolume,
-  
-  // Screenshot
   takeScreenshot,
-  
-  // Execute command with safety
   executeCommand
 };

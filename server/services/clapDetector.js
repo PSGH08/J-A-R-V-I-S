@@ -1,6 +1,5 @@
 // server/services/clapDetector.js
-// This is a SERVER-SIDE file - NO React imports!
-
+// Server-side handler for client clap detection events
 let clapSocket = null;
 
 function setClapSocket(socket) {
@@ -8,8 +7,7 @@ function setClapSocket(socket) {
 }
 
 function handleClapDetected() {
-  // Optional: Add logging if needed
-  // console.log("Clap detected by client");
+  // Client-side detection handles the wake-up logic
 }
 
 module.exports = {

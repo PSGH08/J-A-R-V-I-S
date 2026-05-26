@@ -1,4 +1,4 @@
-// Core.jsx (Idle) - Blue version
+// Core.jsx (Sleep state - blue themed center with J.A.R.V.I.S text)
 import { motion } from "framer-motion";
 
 export default function Core() {
@@ -15,7 +15,7 @@ export default function Core() {
       }}
       className="relative flex h-[200px] w-[200px] items-center justify-center rounded-full overflow-visible"
     >
-      {/* breathing outer glow layer 1 */}
+      {/* Breathing outer glow layers */}
       <motion.div
         animate={{
           opacity: [0.15, 0.4, 0.15],
@@ -29,7 +29,6 @@ export default function Core() {
         className="absolute -inset-8 rounded-full bg-sky-500/30 blur-2xl"
       />
 
-      {/* breathing outer glow layer 2 */}
       <motion.div
         animate={{
           opacity: [0.1, 0.3, 0.1],
@@ -44,7 +43,7 @@ export default function Core() {
         className="absolute -inset-4 rounded-full bg-blue-400/25 blur-xl"
       />
 
-      {/* shell with breathing shadow */}
+      {/* Outer shell with animated glow */}
       <motion.div
         animate={{
           boxShadow: [
@@ -62,7 +61,7 @@ export default function Core() {
         className="absolute inset-0 rounded-full border border-white/30"
       />
 
-      {/* Core inner ring with SVG */}
+      {/* Core SVG with radial gradient and rotating rings */}
       <div className="absolute inset-0 flex items-center justify-center">
         <svg width="190" height="190" viewBox="0 0 190 190">
           <defs>
@@ -72,9 +71,9 @@ export default function Core() {
               <stop offset="100%" stopColor="rgba(2,132,199,0.05)" />
             </radialGradient>
           </defs>
-          {/* Glow fill */}
           <circle cx="95" cy="95" r="88" fill="url(#blueGlow)" />
-          {/* Rotating dashed rings */}
+          
+          {/* Rotating dashed rings with dynamic styling */}
           {[0, 3, 6].map((offset, i) => (
             <circle
               key={i}
@@ -92,7 +91,8 @@ export default function Core() {
               }}
             />
           ))}
-          {/* Inner bright ring */}
+          
+          {/* Inner pulsing ring */}
           <circle
             cx="95"
             cy="95"
@@ -113,6 +113,7 @@ export default function Core() {
         </svg>
       </div>
 
+      {/* J.A.R.V.I.S text with stretched appearance */}
       <h1 className="z-10 text-white text-center select-none" style={{ 
         fontWeight: 900, 
         fontSize: '15px',

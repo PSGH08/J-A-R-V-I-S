@@ -1,4 +1,4 @@
-// AwakeJarvis.jsx
+// AwakeJarvis.jsx (Main awake state - assembles all visual components)
 import OuterRim from "./OuterRim";
 import DOR from "./DOR";
 import Clock from "./Clock";

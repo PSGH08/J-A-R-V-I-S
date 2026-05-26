@@ -1,9 +1,14 @@
+// server/core/systemStats.js
+// Real-time system monitoring: CPU, RAM, GPU, disk, network, battery, and process stats
 const os = require('os');
 const { exec } = require('child_process');
-const fs = require('fs');
 
+const CPU_MEASURE_INTERVAL = 1000;
+const COMMAND_TIMEOUT = 3000;
+const GPU_COMMAND_TIMEOUT = 5000;
 let lastWakeTime = Date.now();
 
+// Measures CPU usage percentage over a 1-second interval
 function getCPUUsage() {
   return new Promise((resolve) => {
     const startMeasure = os.cpus();
@@ -18,90 +23,81 @@ function getCPUUsage() {
       const idle = endIdle - startIdle;
       const total = endTotal - startTotal;
       const percent = Math.round((1 - idle / total) * 1000) / 10;
-
       resolve(percent);
-    }, 1000);
+    }, CPU_MEASURE_INTERVAL);
   });
 }
 
+// Gets CPU temperature using WMI or nvidia-smi fallback
 function getCPUTemp() {
   return new Promise((resolve) => {
-    const platform = process.platform;
-    
-    if (platform === 'win32') {
-      // Try multiple methods
-      exec('powershell "Get-CimInstance MSAcpi_ThermalZoneTemperature -Namespace root/wmi | Select-Object -First 1 | ForEach-Object { $_.CurrentTemperature }"', { timeout: 3000 }, (error, stdout) => {
-        if (!error && stdout.trim()) {
-          const kelvin = parseFloat(stdout.trim()) / 10;
-          const celsius = Math.round(kelvin - 273.15);
-          if (celsius > 0 && celsius < 120) {
-            resolve(celsius);
-            return;
-          }
-        }
-        // Fallback - try nvidia-smi for CPU temp approximation
-        exec('nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader', { timeout: 3000 }, (err2, out2) => {
-          if (!err2 && out2.trim()) {
-            resolve(parseInt(out2.trim()) - 5); // GPU temp minus ~5 for CPU estimate
-          } else {
-            resolve(null);
-          }
-        });
-      });
-    } else {
-      // existing code for mac/linux...
+    if (process.platform !== 'win32') {
       resolve(null);
+      return;
     }
+    
+    exec('powershell "Get-CimInstance MSAcpi_ThermalZoneTemperature -Namespace root/wmi | Select-Object -First 1 | ForEach-Object { $_.CurrentTemperature }"', { timeout: COMMAND_TIMEOUT }, (error, stdout) => {
+      if (!error && stdout.trim()) {
+        const celsius = Math.round((parseFloat(stdout.trim()) / 10) - 273.15);
+        if (celsius > 0 && celsius < 120) {
+          resolve(celsius);
+          return;
+        }
+      }
+      
+      // Fallback: estimate CPU temp from GPU temp
+      exec('nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader', { timeout: COMMAND_TIMEOUT }, (err2, out2) => {
+        if (!err2 && out2.trim()) {
+          resolve(parseInt(out2.trim()) - 5);
+        } else {
+          resolve(null);
+        }
+      });
+    });
   });
 }
 
+// Gets disk space for all drives
 function getDiskSpace() {
   return new Promise((resolve) => {
-    const platform = process.platform;
+    if (process.platform !== 'win32') {
+      resolve({});
+      return;
+    }
     
-    if (platform === 'win32') {
-      exec('powershell "Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Used -gt 0 } | ForEach-Object { $_.Name + \'|\' + [math]::Round($_.Free/1GB,1) + \'|\' + [math]::Round(($_.Used + $_.Free)/1GB,1) }"', { timeout: 5000 }, (error, stdout) => {
-        
-        if (!error && stdout.trim()) {
-          const drives = {};
-          const lines = stdout.trim().split('\n').filter(l => l.trim());
-          lines.forEach(line => {
-            const parts = line.split('|');
-            if (parts.length >= 3) {
-              const letter = parts[0].trim();
-              const free = parseFloat(parts[1]);
-              const total = parseFloat(parts[2]);
-              if (letter && !isNaN(free) && !isNaN(total)) {
-                drives[letter] = { free: Math.round(free), total: Math.round(total), used: Math.round(total - free) };
-              }
-            }
-          });
-          resolve(drives);
-        } else {
-          resolve({});
+    exec('powershell "Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Used -gt 0 } | ForEach-Object { $_.Name + \'|\' + [math]::Round($_.Free/1GB,1) + \'|\' + [math]::Round(($_.Used + $_.Free)/1GB,1) }"', { timeout: 5000 }, (error, stdout) => {
+      if (error || !stdout.trim()) {
+        resolve({});
+        return;
+      }
+      
+      const drives = {};
+      stdout.trim().split('\n').filter(l => l.trim()).forEach(line => {
+        const [letter, free, total] = line.split('|');
+        if (letter && !isNaN(free) && !isNaN(total)) {
+          drives[letter.trim()] = { 
+            free: Math.round(parseFloat(free)), 
+            total: Math.round(parseFloat(total)), 
+            used: Math.round(parseFloat(total) - parseFloat(free)) 
+          };
         }
       });
-    } else {
-      // existing Linux/Mac code...
-      resolve({});
-    }
+      resolve(drives);
+    });
   });
 }
 
+// Gets battery percentage
 function getBattery() {
   return new Promise((resolve) => {
-    const platform = process.platform;
-    let command;
+    const commands = {
+      win32: 'powershell "(Get-WmiObject Win32_Battery).EstimatedChargeRemaining"',
+      darwin: 'pmset -g batt | grep -o "[0-9]*%" | tr -d "%"',
+      linux: 'upower -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null | grep percentage | awk \'{print $2}\' | tr -d "%"'
+    };
     
-    if (platform === 'win32') {
-      command = 'powershell "(Get-WmiObject Win32_Battery).EstimatedChargeRemaining"';
-    } else if (platform === 'darwin') {
-      command = 'pmset -g batt | grep -o "[0-9]*%" | tr -d "%"';
-    } else {
-      command = 'upower -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null | grep percentage | awk \'{print $2}\' | tr -d "%"';
-    }
-
-    exec(command, { timeout: 3000 }, (error, stdout) => {
+    const command = commands[process.platform] || commands.linux;
+    exec(command, { timeout: COMMAND_TIMEOUT }, (error, stdout) => {
       if (error || !stdout.trim()) {
         resolve(null);
         return;
@@ -112,26 +108,24 @@ function getBattery() {
   });
 }
 
+// Gets network ping, active connections, and total processes
 function getNetworkInfo() {
   return new Promise((resolve) => {
-    exec('ping -n 1 8.8.8.8', { timeout: 3000 }, (error, stdout) => {
+    exec('ping -n 1 8.8.8.8', { timeout: COMMAND_TIMEOUT }, (error, stdout) => {
       let ping = null;
       if (!error && stdout) {
         const match = stdout.match(/time[=<]\s*(\d+)ms/i);
         if (match) ping = parseInt(match[1]);
       }
       
-      // Get active connections count
-      const platform = process.platform;
-      const cmd = platform === 'win32' ? 'netstat -an | find /c "ESTABLISHED"' : 'netstat -an | grep ESTABLISHED | wc -l';
+      const isWin = process.platform === 'win32';
+      const connCmd = isWin ? 'netstat -an | find /c "ESTABLISHED"' : 'netstat -an | grep ESTABLISHED | wc -l';
       
-      exec(cmd, { timeout: 3000 }, (err2, out2) => {
+      exec(connCmd, { timeout: COMMAND_TIMEOUT }, (err2, out2) => {
         const connections = out2 ? parseInt(out2.trim()) || 0 : 0;
+        const procCmd = isWin ? 'powershell "(Get-Process).Count"' : 'ps aux | wc -l';
         
-        // Get total processes
-        const procCmd = platform === 'win32' ? 'powershell "(Get-Process).Count"' : 'ps aux | wc -l';
-        
-        exec(procCmd, { timeout: 3000 }, (err3, out3) => {
+        exec(procCmd, { timeout: COMMAND_TIMEOUT }, (err3, out3) => {
           const totalProcs = out3 ? parseInt(out3.trim()) || 0 : 0;
           resolve({ ping, connections, totalProcesses: totalProcs });
         });
@@ -140,53 +134,55 @@ function getNetworkInfo() {
   });
 }
 
+// Gets RAM speed/type
 function getMemoryInfo() {
-  // Get memory type/speed (Windows only via WMI)
   return new Promise((resolve) => {
-    if (process.platform === 'win32') {
-      exec('powershell "(Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1).Speed"', { timeout: 3000 }, (error, stdout) => {
+    const commands = {
+      win32: 'powershell "(Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1).Speed"',
+      darwin: 'system_profiler SPMemoryDataType | grep "Speed:" | head -1 | awk \'{print $2" "$3}\'',
+      linux: 'sudo dmidecode -t memory 2>/dev/null | grep "Speed:" | head -1 | awk \'{print $2" "$3}\''
+    };
+    
+    const command = commands[process.platform];
+    if (!command) {
+      resolve(null);
+      return;
+    }
+    
+    exec(command, { timeout: COMMAND_TIMEOUT }, (error, stdout) => {
+      if (process.platform === 'win32') {
         const speed = stdout ? parseInt(stdout.trim()) : null;
         resolve(speed ? `${speed}MHz` : null);
-      });
-    } else if (process.platform === 'darwin') {
-      exec('system_profiler SPMemoryDataType | grep "Speed:" | head -1 | awk \'{print $2" "$3}\'', { timeout: 3000 }, (error, stdout) => {
+      } else {
         resolve(stdout ? stdout.trim() : null);
-      });
-    } else {
-      exec('sudo dmidecode -t memory 2>/dev/null | grep "Speed:" | head -1 | awk \'{print $2" "$3}\'', { timeout: 3000 }, (error, stdout) => {
-        resolve(stdout ? stdout.trim() : null);
-      });
-    }
+      }
+    });
   });
 }
 
+// Gets top 10 processes by CPU usage
 function getTopProcesses() {
   return new Promise((resolve) => {
-    const platform = process.platform;
-    let command;
+    const commands = {
+      win32: 'powershell "Get-Process | Group-Object ProcessName | ForEach-Object { $_.Name + \'|\' + [math]::Round(($_.Group | Measure-Object CPU -Sum).Sum, 1) + \'|\' + [math]::Round(($_.Group | Measure-Object WorkingSet64 -Sum).Sum / 1GB, 2) + \'|\' + $_.Count } | Sort-Object { [double]($_ -split \'\\|\')[1] } -Descending | Select-Object -First 10"',
+      darwin: 'ps -eo comm,pcpu,rss -r | awk \'{cpu[$1]+=$2; ram[$1]+=$3; count[$1]++} END {for (p in cpu) printf "%s|%.1f|%.2f|%d\\n", p, cpu[p], ram[p]/1024/1024, count[p]}\' | sort -t\'|\' -k2 -rn | head -10',
+      linux: 'ps -eo comm,pcpu,rss --sort=-pcpu | awk \'{cpu[$1]+=$2; ram[$1]+=$3; count[$1]++} END {for (p in cpu) printf "%s|%.1f|%.2f|%d\\n", p, cpu[p], ram[p]/1024/1024, count[p]}\' | sort -t\'|\' -k2 -rn | head -10'
+    };
     
-    if (platform === 'win32') {
-      command = 'powershell "Get-Process | Group-Object ProcessName | ForEach-Object { $_.Name + \'|\' + [math]::Round(($_.Group | Measure-Object CPU -Sum).Sum, 1) + \'|\' + [math]::Round(($_.Group | Measure-Object WorkingSet64 -Sum).Sum / 1GB, 2) + \'|\' + $_.Count } | Sort-Object { [double]($_ -split \'\\|\')[1] } -Descending | Select-Object -First 10"';
-    } else if (platform === 'darwin') {
-      command = 'ps -eo comm,pcpu,rss -r | awk \'{cpu[$1]+=$2; ram[$1]+=$3; count[$1]++} END {for (p in cpu) printf "%s|%.1f|%.2f|%d\\n", p, cpu[p], ram[p]/1024/1024, count[p]}\' | sort -t\'|\' -k2 -rn | head -10';
-    } else {
-      command = 'ps -eo comm,pcpu,rss --sort=-pcpu | awk \'{cpu[$1]+=$2; ram[$1]+=$3; count[$1]++} END {for (p in cpu) printf "%s|%.1f|%.2f|%d\\n", p, cpu[p], ram[p]/1024/1024, count[p]}\' | sort -t\'|\' -k2 -rn | head -10';
-    }
-
-    exec(command, { timeout: 3000 }, (error, stdout) => {
-      if (error) {
+    const command = commands[process.platform] || commands.linux;
+    exec(command, { timeout: COMMAND_TIMEOUT }, (error, stdout) => {
+      if (error || !stdout.trim()) {
         resolve([{ name: "System", cpu: 0.8, ram: 1.2, count: 1 }]);
         return;
       }
 
-      const lines = stdout.trim().split('\n').filter(l => l.trim());
-      const tasks = lines.map(line => {
-        const parts = line.split('|');
-        const name = parts[0] || 'unknown';
-        const cpu = parseFloat(parts[1]) || 0;
-        const ram = parseFloat(parts[2]) || 0;
-        const count = parseInt(parts[3]) || 1;
-        return { name: count > 1 ? `${name} (${count})` : name, cpu, ram };
+      const tasks = stdout.trim().split('\n').filter(l => l.trim()).map(line => {
+        const [name, cpu, ram, count] = line.split('|');
+        return { 
+          name: parseInt(count) > 1 ? `${name} (${count})` : name, 
+          cpu: parseFloat(cpu) || 0, 
+          ram: parseFloat(ram) || 0 
+        };
       });
 
       resolve(tasks.length > 0 ? tasks : [{ name: "System", cpu: 0.8, ram: 1.2 }]);
@@ -194,20 +190,23 @@ function getTopProcesses() {
   });
 }
 
+// Gets GPU temperature, usage, and power draw
 function getGPUInfo() {
   return new Promise((resolve) => {
-    exec('nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,power.draw --format=csv,noheader', { timeout: 5000 }, (error, stdout) => {
+    exec('nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,power.draw --format=csv,noheader', { timeout: GPU_COMMAND_TIMEOUT }, (error, stdout) => {
       if (!error && stdout.trim()) {
-        const parts = stdout.trim().split(',');
-        const temp = parseInt(parts[0]);
-        const usage = parseInt(parts[1]);
-        const power = parts[2] ? parts[2].trim() : null;
-        resolve({ temp: isNaN(temp) ? null : temp, usage: isNaN(usage) ? null : usage, power });
+        const [temp, usage, power] = stdout.trim().split(',');
+        resolve({ 
+          temp: isNaN(parseInt(temp)) ? null : parseInt(temp), 
+          usage: isNaN(parseInt(usage)) ? null : parseInt(usage), 
+          power: power ? power.trim() : null 
+        });
         return;
       }
 
+      // Windows WMI fallback
       if (process.platform === 'win32') {
-        exec('powershell "(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature | Select-Object -First 1).CurrentTemperature"', { timeout: 3000 }, (err2, out2) => {
+        exec('powershell "(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature | Select-Object -First 1).CurrentTemperature"', { timeout: COMMAND_TIMEOUT }, (err2, out2) => {
           if (!err2 && out2.trim()) {
             const raw = parseFloat(out2.trim());
             const temp = raw > 200 ? Math.round(raw - 273.15) : Math.round(raw);
@@ -223,10 +222,12 @@ function getGPUInfo() {
   });
 }
 
+// Updates the last wake timestamp
 function setWakeTime() {
   lastWakeTime = Date.now();
 }
 
+// Formats time since last wake
 function getLastWake() {
   const diff = Date.now() - lastWakeTime;
   const minutes = Math.floor(diff / 60000);
@@ -235,6 +236,7 @@ function getLastWake() {
   return `${minutes}m ago`;
 }
 
+// Aggregates all system statistics into a single object
 async function getSystemStats() {
   const cpuPercent = await getCPUUsage();
   const totalMem = os.totalmem();

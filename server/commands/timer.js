@@ -1,9 +1,10 @@
+// server/commands/timer.js
+// Timer management with multiple concurrent timers and human-readable time formatting
 const logger = require("../utils/logger");
 
-// Store active timers
 const activeTimers = new Map();
 
-// Convert seconds to human-readable format
+// Converts total seconds to human-readable format
 function formatDuration(totalSeconds) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -20,7 +21,7 @@ function formatDuration(totalSeconds) {
   return `${parts[0]}, ${parts[1]}, and ${parts[2]}`;
 }
 
-// Get remaining time for a timer
+// Calculates remaining time for a timer in human-readable format
 function getTimeRemaining(timerId) {
   const timer = activeTimers.get(timerId);
   if (!timer) return "No timer found";
@@ -32,6 +33,7 @@ function getTimeRemaining(timerId) {
   return formatDuration(remainingSeconds);
 }
 
+// Starts a new timer and returns confirmation with formatted duration
 function runTimer({ duration }, socket) {
   const timerId = Date.now();
   const durationMs = duration * 1000;
@@ -39,7 +41,6 @@ function runTimer({ duration }, socket) {
   
   logger.log(`Timer started for ${formattedDuration} (ID: ${timerId})`);
   
-  // Store timer info
   activeTimers.set(timerId, {
     duration,
     formattedDuration,
@@ -48,34 +49,30 @@ function runTimer({ duration }, socket) {
     timeout: null
   });
   
-  // Set timeout for when timer finishes
   const timeout = setTimeout(() => {
     logger.log(`Timer finished: ${formattedDuration}`);
     
-    // Emit the finished message through socket
     if (socket) {
       socket.emit("response", {
         text: `Timer finished, sir. ${formattedDuration} has elapsed.`
       });
     }
     
-    // Remove from active timers
     activeTimers.delete(timerId);
   }, durationMs);
   
-  // Store the timeout reference
+  // Store timeout reference for cancellation
   const timer = activeTimers.get(timerId);
   if (timer) {
     timer.timeout = timeout;
   }
   
-  // Return immediate confirmation with human-readable time
   return { 
     speech: `Timer set for ${formattedDuration}, sir. I will notify you when it's complete.` 
   };
 }
 
-// Check how much time is left on a timer
+// Returns status of all active timers
 function checkTimer(socket) {
   const timers = Array.from(activeTimers.entries());
   
@@ -84,13 +81,12 @@ function checkTimer(socket) {
   }
   
   if (timers.length === 1) {
-    const [id, timer] = timers[0];
+    const [id] = timers[0];
     const remaining = getTimeRemaining(id);
     return { speech: `One timer running, sir. ${remaining} remaining.` };
   }
   
-  // Multiple timers
-  const timerDescriptions = timers.map(([id, timer]) => {
+  const timerDescriptions = timers.map(([id]) => {
     const remaining = getTimeRemaining(id);
     return `${remaining} remaining`;
   });
@@ -100,11 +96,11 @@ function checkTimer(socket) {
   };
 }
 
-// Optional: Function to cancel a timer
+// Cancels a specific timer by ID
 function cancelTimer(timerId) {
   const timer = activeTimers.get(timerId);
   if (timer) {
-    const remaining = getTimeRemaining(timerId); // Get remaining BEFORE clearing
+    const remaining = getTimeRemaining(timerId);
     clearTimeout(timer.timeout);
     activeTimers.delete(timerId);
     logger.log(`Timer ${timerId} cancelled`);
@@ -113,7 +109,7 @@ function cancelTimer(timerId) {
   return { speech: "No timer found to cancel, sir." };
 }
 
-// Get all active timers
+// Returns all active timers with remaining time
 function getActiveTimers() {
   return Array.from(activeTimers.entries()).map(([id, timer]) => ({
     id,

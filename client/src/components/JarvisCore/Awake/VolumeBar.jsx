@@ -1,9 +1,12 @@
-// VolumeBar.jsx
+// VolumeBar.jsx (Circular volume indicator with 100 segments)
 export default function VolumeBar({ volume = 68 }) {
+  const SEGMENTS = 100;
+  const SEGMENT_ANGLE = 360 / SEGMENTS;
+
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
       <div className="relative h-[350px] w-[350px] rounded-full">
-        {[...Array(100)].map((_, i) => {
+        {[...Array(SEGMENTS)].map((_, i) => {
           const filled = i < volume;
 
           return (
@@ -11,7 +14,7 @@ export default function VolumeBar({ volume = 68 }) {
               key={i}
               className="absolute left-1/2 top-1/2 h-[155px] origin-bottom"
               style={{
-                transform: `translate(-50%, -100%) rotate(${i * 3.6}deg)`,
+                transform: `translate(-50%, -100%) rotate(${i * SEGMENT_ANGLE}deg)`,
               }}
             >
               <div

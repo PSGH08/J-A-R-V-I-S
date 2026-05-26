@@ -1,32 +1,15 @@
+// server/data/translate.js
+// Translation using Google Translate API with offline dictionary fallback
 const { exec } = require("child_process");
 const { promisify } = require("util");
 const execPromise = promisify(exec);
 
-// Simple translation using Google Translate via PowerShell web request
-async function translate(text, targetLang) {
-  const langMap = {
-    'persian': 'fa', 'farsi': 'fa',
-    'spanish': 'es',
-    'english': 'en'
-  };
-  
-  const langCode = langMap[targetLang.toLowerCase()] || targetLang;
-  
-  try {
-    // Use free Google Translate API
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${langCode}&dt=t&q=${encodeURIComponent(text)}`;
-    const { stdout } = await execPromise(`powershell -Command "(Invoke-WebRequest -Uri '${url}' -UseBasicParsing).Content"`);
-    
-    const parsed = JSON.parse(stdout);
-    const translated = parsed[0].map(part => part[0]).join('');
-    
-    return { success: true, translated };
-  } catch (error) {
-    return { success: false, error: "Translation failed" };
-  }
-}
+const LANG_MAP = {
+  'persian': 'fa', 'farsi': 'fa',
+  'spanish': 'es',
+  'english': 'en'
+};
 
-// For local use without internet, basic dictionary fallback
 const dictionary = {
   fa: {
     'hello': 'سلام',
@@ -72,15 +55,33 @@ const dictionary = {
   }
 };
 
+// Translates text using Google Translate API
+async function translate(text, targetLang) {
+  const langCode = LANG_MAP[targetLang.toLowerCase()] || targetLang;
+  
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${langCode}&dt=t&q=${encodeURIComponent(text)}`;
+    const { stdout } = await execPromise(`powershell -Command "(Invoke-WebRequest -Uri '${url}' -UseBasicParsing).Content"`);
+    
+    const parsed = JSON.parse(stdout);
+    const translated = parsed[0].map(part => part[0]).join('');
+    
+    return { success: true, translated };
+  } catch (error) {
+    return { success: false, error: "Translation failed" };
+  }
+}
+
+// Performs local dictionary lookup for offline translation
 function localTranslate(text, targetLang) {
   const lang = targetLang.toLowerCase();
   const lookup = dictionary[lang];
   if (!lookup) return null;
   
   const lower = text.toLowerCase().trim();
+  
   if (lookup[lower]) return lookup[lower];
   
-  // Check partial matches
   for (const [key, value] of Object.entries(lookup)) {
     if (lower.includes(key)) return value;
   }

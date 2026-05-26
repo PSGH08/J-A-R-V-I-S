@@ -1,3 +1,5 @@
+// server/core/commandRouter.js
+// Central command router that dispatches all J.A.R.V.I.S. commands to appropriate handlers
 const { runTimer, checkTimer, cancelTimer, getActiveTimers } = require("../commands/timer");
 const { openApp } = require("../commands/appControl");
 const { runBrowserAutomation, getOrCreateBrowser, summarizeCurrentPage, clickResultNumber } = require("../commands/browser");
@@ -11,7 +13,7 @@ const music = require("../commands/music");
 // Cache browser instances to avoid re-creating
 let browserCache = null;
 let browserLastUsed = 0;
-const BROWSER_CACHE_TTL = 300000; // 5 minutes
+const BROWSER_CACHE_TTL = 300000;
 
 async function getBrowser() {
   const now = Date.now();

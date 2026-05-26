@@ -1,4 +1,4 @@
-// Clock.jsx
+// Clock.jsx (Awake state - circular clock showing hour progress)
 export default function Clock() {
   const now = new Date();
   const hours = now.getHours() % 12;
@@ -7,6 +7,9 @@ export default function Clock() {
 
   const radius = 120;
   const circumference = 2 * Math.PI * radius;
+
+  // Calculate position on circle for the progress dot
+  const progressAngle = (totalHours / 12) * 2 * Math.PI - Math.PI / 2;
 
   return (
     <div className="absolute inset-0 flex items-center justify-center">
@@ -29,7 +32,7 @@ export default function Clock() {
             </filter>
           </defs>
 
-          {/* Subtle outer ring */}
+          {/* Outer decorative ring */}
           <circle
             cx="165"
             cy="165"
@@ -49,7 +52,7 @@ export default function Clock() {
             strokeWidth="8"
           />
           
-          {/* Glow track underneath */}
+          {/* Glow effect behind progress arc */}
           {totalHours > 0 && (
             <circle
               cx="165"
@@ -64,7 +67,7 @@ export default function Clock() {
             />
           )}
           
-          {/* Main progress arc */}
+          {/* Main progress arc showing elapsed hours */}
           {totalHours > 0 && (
             <circle
               cx="165"
@@ -80,18 +83,18 @@ export default function Clock() {
             />
           )}
           
-          {/* Progress dot at the leading edge */}
+          {/* Leading progress indicator dot */}
           {totalHours > 0 && (
             <circle
-              cx={165 + radius * Math.cos((totalHours / 12) * 2 * Math.PI - Math.PI / 2)}
-              cy={165 + radius * Math.sin((totalHours / 12) * 2 * Math.PI - Math.PI / 2)}
+              cx={165 + radius * Math.cos(progressAngle)}
+              cy={165 + radius * Math.sin(progressAngle)}
               r="5"
               fill="#fb923c"
               filter="url(#awakeClockGlow)"
             />
           )}
           
-          {/* Hour markers */}
+          {/* Hour markers around the clock face */}
           {[...Array(12)].map((_, i) => {
             const angle = ((i * 30) - 90) * Math.PI / 180;
             const innerRadius = 112;

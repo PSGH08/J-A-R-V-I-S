@@ -1,31 +1,35 @@
+// server/commands/browser.js
+// Browser automation using Playwright with persistent Chrome profile and Google search support
 const { chromium } = require("playwright");
 const path = require("path");
 const { exec } = require("child_process");
 const logger = require("../utils/logger");
 
-// Cache browser instance
+const KEEP_ALIVE_MS = 120000; // 2 minutes
+const USER_DATA_DIR = path.join(__dirname, "../../.browser-profile");
+
+// Cached browser instance for performance
 let cachedBrowser = null;
 let cachedContext = null;
 let cachedPage = null;
 let lastUseTime = Date.now();
 
-// Keep browser alive for 2 minutes after last use (so commands can chain)
-const KEEP_ALIVE_MS = 120000; // 2 minutes
+// Common site-specific search selectors
+const SEARCH_SELECTORS = {
+  "google.com": 'textarea[name="q"], input[name="q"]',
+  "youtube.com": 'input[name="search_query"]',
+  "github.com": 'input[name="q"]'
+};
 
-function getSimpleSelector(url) {
-  if (url.includes("google.com")) {
-    return 'textarea[name="q"], input[name="q"]';
-  }
-  if (url.includes("youtube.com")) {
-    return 'input[name="search_query"]';
-  }
-  if (url.includes("github.com")) {
-    return 'input[name="q"]';
+// Returns the search input selector for known sites
+function getSearchSelector(url) {
+  for (const [domain, selector] of Object.entries(SEARCH_SELECTORS)) {
+    if (url.includes(domain)) return selector;
   }
   return null;
 }
 
-// Ultra-fast method for simple URLs (uses Windows shell - your default Chrome)
+// Opens URL using Windows shell (default Chrome) for simple navigation
 async function openUrlFast(url) {
   return new Promise((resolve) => {
     exec(`start ${url}`, (error) => {
@@ -40,6 +44,7 @@ async function openUrlFast(url) {
   });
 }
 
+// Gets or creates a persistent browser instance with user profile
 async function getOrCreateBrowser() {
   if (cachedBrowser && cachedContext && cachedPage) {
     try {
@@ -54,12 +59,9 @@ async function getOrCreateBrowser() {
     }
   }
   
-  // Use your Chrome profile so you stay logged in
-  const userDataDir = path.join(__dirname, "../../.browser-profile");
-  
   logger.log("Launching browser with your profile (you'll stay logged in)...");
   
-  cachedContext = await chromium.launchPersistentContext(userDataDir, {
+  cachedContext = await chromium.launchPersistentContext(USER_DATA_DIR, {
     headless: false,
     channel: "chrome",
     args: [
@@ -86,7 +88,7 @@ async function getOrCreateBrowser() {
   return { context: cachedContext, page: cachedPage };
 }
 
-// Clean up idle browser - now 2 minutes
+// Auto-closes idle browser after keep-alive period
 setInterval(() => {
   if (cachedBrowser && (Date.now() - lastUseTime) > KEEP_ALIVE_MS) {
     logger.log("Closing idle browser...");
@@ -97,17 +99,33 @@ setInterval(() => {
   }
 }, 10000);
 
+// Dismisses common cookie consent popups
+async function dismissCookiePopups(page) {
+  const cookieSelectors = [
+    'button:has-text("Accept all")',
+    'button:has-text("Accept")',
+    'button:has-text("I agree")'
+  ];
+  
+  for (const selector of cookieSelectors) {
+    try {
+      await page.click(selector, { timeout: 1000 });
+    } catch {}
+  }
+}
+
+// Main browser automation entry point
 async function runBrowserAutomation({ url, actions = [] }) {
   const startTime = Date.now();
   
   try {
-    // For simple URL open (no actions) - use Windows shell (your Chrome)
+    // Simple URL opening without actions uses Windows shell
     if (!actions || actions.length === 0) {
       logger.log(`Opening ${url} in your default Chrome`);
       return await openUrlFast(url);
     }
     
-    // For complex actions, use Playwright with your profile
+    // Complex actions use Playwright with user profile
     logger.log(`Advanced automation for: ${url}`);
     const { page } = await getOrCreateBrowser();
     
@@ -122,27 +140,13 @@ async function runBrowserAutomation({ url, actions = [] }) {
     });
     
     await page.waitForTimeout(500);
+    await dismissCookiePopups(page);
     
-    // Cookie popup handling
-    try {
-      await page.click('button:has-text("Accept all")', { timeout: 1000 });
-    } catch {}
-    try {
-      await page.click('button:has-text("Accept")', { timeout: 1000 });
-    } catch {}
-    try {
-      await page.click('button:has-text("I agree")', { timeout: 1000 });
-    } catch {}
-    
-    // Execute actions
+    // Execute each action in sequence
     for (const action of actions) {
       try {
         if (action.type === "fill") {
-          let selector = action.selector;
-          const simpleSelector = getSimpleSelector(url);
-          if (simpleSelector) {
-            selector = simpleSelector;
-          }
+          const selector = getSearchSelector(url) || action.selector;
           
           const locator = page.locator(selector).first();
           await locator.waitFor({ state: "visible", timeout: 2000 });
@@ -192,16 +196,13 @@ async function runBrowserAutomation({ url, actions = [] }) {
   }
 }
 
-// Summarize current page
+// Extracts and summarizes content from the current page
 async function summarizeCurrentPage(page) {
   try {
     const title = await page.title();
     const url = page.url();
     
-    let summary = '';
-    
     if (url.includes('google.com/search')) {
-      // Extract Google search results
       const results = await page.evaluate(() => {
         const searchResults = [];
         const resultDivs = document.querySelectorAll('div.g, div[data-hveid], div.MjjYud');
@@ -226,35 +227,38 @@ async function summarizeCurrentPage(page) {
       });
       
       if (results.length > 0) {
-        summary = `Here's what I found:\n\n`;
+        let summary = `Here's what I found:\n\n`;
         results.forEach((r, i) => {
           summary += `${i + 1}. ${r.title}\n   ${r.snippet}\n\n`;
         });
         summary += `Say "click first result" or "click page 2" to navigate.`;
-      } else {
-        summary = `I'm on Google results but couldn't read them.`;
+        return { speech: summary };
       }
-    } else if (url === 'about:blank') {
-      summary = "No page is loaded. Try searching for something first.";
-    } else {
-      const content = await page.evaluate(() => {
-        const metaDesc = document.querySelector('meta[name="description"]');
-        if (metaDesc) return metaDesc.getAttribute('content');
-        const firstP = document.querySelector('p');
-        if (firstP) return firstP.innerText.substring(0, 300);
-        return document.body ? document.body.innerText.substring(0, 200) : '';
-      });
-      summary = `Page: ${title}\n\n${content}`;
+      
+      return { speech: `I'm on Google results but couldn't read them.` };
     }
     
-    return { speech: summary };
+    if (url === 'about:blank') {
+      return { speech: "No page is loaded. Try searching for something first." };
+    }
+    
+    // Extract content from regular pages
+    const content = await page.evaluate(() => {
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) return metaDesc.getAttribute('content');
+      const firstP = document.querySelector('p');
+      if (firstP) return firstP.innerText.substring(0, 300);
+      return document.body ? document.body.innerText.substring(0, 200) : '';
+    });
+    
+    return { speech: `Page: ${title}\n\n${content}` };
   } catch (error) {
     logger.error(`Summarize failed: ${error.message}`);
     return { speech: "I couldn't read the page. Make sure a page is loaded." };
   }
 }
 
-// Click Google page number
+// Navigates to a specific page of Google search results
 async function clickGooglePage(page, pageNumber) {
   try {
     const currentUrl = page.url();
@@ -264,14 +268,14 @@ async function clickGooglePage(page, pageNumber) {
     }
     
     const clicked = await page.evaluate((num) => {
-      // Try aria-label
-      let links = document.querySelectorAll(`a[aria-label="Page ${num}"]`);
-      if (links.length > 0) {
-        links[0].click();
+      // Try aria-label first
+      const ariaLinks = document.querySelectorAll(`a[aria-label="Page ${num}"]`);
+      if (ariaLinks.length > 0) {
+        ariaLinks[0].click();
         return true;
       }
       
-      // Try text content in pagination
+      // Fallback to text content matching
       const allLinks = document.querySelectorAll('a');
       for (const link of allLinks) {
         if (link.textContent.trim() === String(num) && link.href.includes('start=')) {
@@ -291,16 +295,16 @@ async function clickGooglePage(page, pageNumber) {
     if (clicked) {
       await page.waitForTimeout(1500);
       return { speech: `Navigated to page ${pageNumber}` };
-    } else {
-      return { speech: `Couldn't find page ${pageNumber}` };
     }
+    
+    return { speech: `Couldn't find page ${pageNumber}` };
   } catch (error) {
     logger.error(`Click page failed: ${error.message}`);
     return { speech: `Failed to navigate to page ${pageNumber}` };
   }
 }
 
-// Click result number
+// Clicks a specific search result by position number
 async function clickResultNumber(page, position) {
   try {
     const currentUrl = page.url();
@@ -332,16 +336,16 @@ async function clickResultNumber(page, position) {
     if (clicked) {
       await page.waitForTimeout(1500);
       return { speech: `Clicked result ${position}` };
-    } else {
-      return { speech: `Couldn't find result ${position}` };
     }
+    
+    return { speech: `Couldn't find result ${position}` };
   } catch (error) {
     logger.error(`Click result failed: ${error.message}`);
     return { speech: `Failed to click result ${position}` };
   }
 }
 
-// Clean up on exit
+// Clean up browser on process exit
 process.on('exit', () => {
   if (cachedBrowser) {
     cachedBrowser.close().catch(() => {});

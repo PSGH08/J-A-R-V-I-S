@@ -1,7 +1,10 @@
-// OuterRim.jsx (Idle)
+// OuterRim.jsx (Sleep state - blue themed animated decorative rings)
 export default function OuterRim({ size = 520 }) {
   const cx = size / 2;
   const cy = size / 2;
+  const baseRadius = 160;
+  
+  // Concentric ring layers with their visual properties
   const layers = [
     { offset: 0, strokeWidth: 3, dashArray: "100 20", color: "rgba(14,165,233,0.35)", duration: "3s", delay: "0s", rotate: 0 },
     { offset: 4, strokeWidth: 2, dashArray: "80 30", color: "rgba(2,132,199,0.3)", duration: "4s", delay: "0.5s", rotate: 30 },
@@ -20,7 +23,7 @@ export default function OuterRim({ size = 520 }) {
             key={i}
             cx={cx}
             cy={cy}
-            r={160 - layer.offset}
+            r={baseRadius - layer.offset}
             fill="none"
             stroke={layer.color}
             strokeWidth={layer.strokeWidth}

@@ -1,17 +1,16 @@
+// server/ai/ollamaClient.js
+// Ollama LLM integration for J.A.R.V.I.S. responses
 const axios = require("axios");
 
 const OLLAMA_URL = "http://localhost:11434/api/generate";
+const REQUEST_TIMEOUT = 60000;
 
 async function queryOllama(prompt) {
   try {
     console.log("🦙 Sending request to Ollama...");
 
     const controller = new AbortController();
-
-    // manual timeout instead of axios timeout
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, 60000); // 60 seconds
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
     const response = await axios.post(
       OLLAMA_URL,
@@ -30,11 +29,8 @@ async function queryOllama(prompt) {
     );
 
     clearTimeout(timeout);
-
     console.log("🦙 Ollama finished");
-
     return response.data.response;
-
   } catch (err) {
     console.error("❌ Ollama Error:", err.message);
     return null;

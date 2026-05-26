@@ -1,7 +1,9 @@
-// OuterRim.jsx (Awake)
+// OuterRim.jsx (Awake state - animated decorative rings)
 export default function OuterRim({ size = 520 }) {
   const cx = size / 2;
   const cy = size / 2;
+  
+  // Concentric ring layers with their visual properties
   const layers = [
     { radius: 200, strokeWidth: 2, dashArray: "100 20", color: "rgba(251,146,60,0.9)", duration: "3s", delay: "0s" },
     { radius: 195, strokeWidth: 1.5, dashArray: "80 30", color: "rgba(249,115,22,0.7)", duration: "4s", delay: "0.5s" },

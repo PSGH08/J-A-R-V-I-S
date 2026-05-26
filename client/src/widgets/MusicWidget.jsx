@@ -1,10 +1,18 @@
+// MusicWidget.jsx
+// Draggable music player widget with playback controls and progress tracking
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { socket } from "../services/socket";
 
+const WIDGET_WIDTH = 288;
+const WIDGET_HEIGHT = 250;
+
 export default function MusicWidget() {
   const [musicState, setMusicState] = useState(null);
-  const [position, setPosition] = useState({ x: window.innerWidth - 320, y: window.innerHeight - 280 });
+  const [position, setPosition] = useState({ 
+    x: window.innerWidth - 320, 
+    y: window.innerHeight - 280 
+  });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
@@ -18,6 +26,7 @@ export default function MusicWidget() {
     };
   }, []);
 
+  // Initialize drag starting position
   const handleMouseDown = useCallback((e) => {
     if (e.target.closest("button")) return;
     setIsDragging(true);
@@ -27,12 +36,13 @@ export default function MusicWidget() {
     };
   }, [position]);
 
+  // Handle widget dragging within window bounds
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging) return;
       setPosition({
-        x: Math.max(0, Math.min(e.clientX - dragStart.current.x, window.innerWidth - 288)),
-        y: Math.max(0, Math.min(e.clientY - dragStart.current.y, window.innerHeight - 250)),
+        x: Math.max(0, Math.min(e.clientX - dragStart.current.x, window.innerWidth - WIDGET_WIDTH)),
+        y: Math.max(0, Math.min(e.clientY - dragStart.current.y, window.innerHeight - WIDGET_HEIGHT)),
       });
     };
 
@@ -49,6 +59,7 @@ export default function MusicWidget() {
     };
   }, [isDragging]);
 
+  // Format seconds to MM:SS display
   const formatTime = (seconds) => {
     if (!seconds || seconds === Infinity || seconds < 0) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -60,7 +71,7 @@ export default function MusicWidget() {
     socket.emit("musicCommand", cmd);
   };
 
-  // Show if playing or paused, hide only if fully stopped
+  // Hide widget when fully stopped, show when playing or paused
   if (!musicState || !musicState.playing) return null;
 
   const progressPercent = musicState.duration > 0 
@@ -83,7 +94,7 @@ export default function MusicWidget() {
         onMouseDown={handleMouseDown}
         className="w-72 bg-black/85 backdrop-blur-md border border-orange-400/30 rounded-xl p-4 font-mono text-xs shadow-2xl select-none"
       >
-        {/* Header */}
+        {/* Status indicator and close button */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${musicState.paused ? 'bg-yellow-400' : 'bg-green-400 animate-pulse'}`} />
@@ -99,7 +110,7 @@ export default function MusicWidget() {
           </button>
         </div>
 
-        {/* Song name */}
+        {/* Song info */}
         <div className="text-white/90 text-sm font-medium truncate mb-1">
           {musicState.song?.replace(".mp3", "") || "Unknown"}
         </div>
@@ -116,13 +127,13 @@ export default function MusicWidget() {
           />
         </div>
 
-        {/* Time */}
+        {/* Time display */}
         <div className="flex justify-between text-[10px] text-orange-400/40 mb-3">
           <span>{formatTime(musicState.elapsed || 0)}</span>
           <span>-{formatTime(musicState.remaining || musicState.duration || 0)}</span>
         </div>
 
-        {/* Controls */}
+        {/* Playback controls */}
         <div className="flex items-center justify-center gap-5">
           <button
             onClick={() => handleCommand("previous")}
@@ -158,6 +169,7 @@ export default function MusicWidget() {
           </button>
         </div>
 
+        {/* Queue info */}
         <div className="text-center text-[9px] text-orange-400/30 mt-2">
           Track {musicState.queuePosition || 1} of {musicState.queueTotal || "?"} • Shuffle
         </div>

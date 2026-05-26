@@ -1,10 +1,16 @@
+// Clock.jsx (Sleep state - blue theme clock showing hour progress)
 export default function Clock() {
   const now = new Date();
   const hours = now.getHours() % 12;
   const minutes = now.getMinutes();
   const totalHours = hours + minutes / 60;
 
-  const circumference = 2 * Math.PI * 140;
+  const radius = 140;
+  const circumference = 2 * Math.PI * radius;
+  const center = 180;
+  
+  // Calculate position on circle for the progress dot
+  const progressAngle = (totalHours / 12) * 2 * Math.PI - Math.PI / 2;
 
   return (
     <div className="absolute inset-0 flex items-center justify-center">
@@ -27,10 +33,10 @@ export default function Clock() {
             </filter>
           </defs>
 
-          {/* Subtle outer ring */}
+          {/* Outer decorative ring */}
           <circle
-            cx="180"
-            cy="180"
+            cx={center}
+            cy={center}
             r="155"
             fill="none"
             stroke="rgba(56,189,248,0.08)"
@@ -39,65 +45,65 @@ export default function Clock() {
           
           {/* Background track */}
           <circle
-            cx="180"
-            cy="180"
-            r="140"
+            cx={center}
+            cy={center}
+            r={radius}
             fill="none"
             stroke="rgba(14,165,233,0.08)"
             strokeWidth="8"
           />
           
-          {/* Glow track underneath */}
+          {/* Glow effect behind progress arc */}
           {totalHours > 0 && (
             <circle
-              cx="180"
-              cy="180"
-              r="140"
+              cx={center}
+              cy={center}
+              r={radius}
               fill="none"
               stroke="rgba(56,189,248,0.15)"
               strokeWidth="12"
               strokeDasharray={`${(totalHours / 12) * circumference} ${circumference}`}
               strokeLinecap="round"
-              transform="rotate(-90 180 180)"
+              transform={`rotate(-90 ${center} ${center})`}
             />
           )}
           
-          {/* Main progress arc */}
+          {/* Main progress arc showing elapsed hours */}
           {totalHours > 0 && (
             <circle
-              cx="180"
-              cy="180"
-              r="140"
+              cx={center}
+              cy={center}
+              r={radius}
               fill="none"
               stroke="url(#clockGradient)"
               strokeWidth="8"
               strokeDasharray={`${(totalHours / 12) * circumference} ${circumference}`}
               strokeLinecap="round"
-              transform="rotate(-90 180 180)"
+              transform={`rotate(-90 ${center} ${center})`}
               filter="url(#clockGlow)"
             />
           )}
           
-          {/* Progress dot at the leading edge */}
+          {/* Leading progress indicator dot */}
           {totalHours > 0 && (
             <circle
-              cx={180 + 140 * Math.cos((totalHours / 12) * 2 * Math.PI - Math.PI / 2)}
-              cy={180 + 140 * Math.sin((totalHours / 12) * 2 * Math.PI - Math.PI / 2)}
+              cx={center + radius * Math.cos(progressAngle)}
+              cy={center + radius * Math.sin(progressAngle)}
               r="6"
               fill="#38bdf8"
               filter="url(#clockGlow)"
             />
           )}
           
-          {/* Hour markers */}
+          {/* Hour markers around the clock face */}
           {[...Array(12)].map((_, i) => {
             const angle = ((i * 30) - 90) * Math.PI / 180;
             const innerRadius = 130;
             const outerRadius = 145;
-            const x1 = 180 + Math.cos(angle) * innerRadius;
-            const y1 = 180 + Math.sin(angle) * innerRadius;
-            const x2 = 180 + Math.cos(angle) * outerRadius;
-            const y2 = 180 + Math.sin(angle) * outerRadius;
+            const x1 = center + Math.cos(angle) * innerRadius;
+            const y1 = center + Math.sin(angle) * innerRadius;
+            const x2 = center + Math.cos(angle) * outerRadius;
+            const y2 = center + Math.sin(angle) * outerRadius;
             const isFilled = i < totalHours;
             
             return (

@@ -1,10 +1,11 @@
+// server/commands/schedule.js
+// Weekly schedule management with current/next activity tracking
 const fs = require("fs").promises;
 const path = require("path");
 
-// Schedule data storage
 const SCHEDULE_FILE = path.join(__dirname, "..", "data", "schedule.json");
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-// Default schedule based on your routine
 const defaultSchedule = {
   Saturday: [
     { time: "9:30", activity: "School starts" },
@@ -93,7 +94,7 @@ const defaultSchedule = {
   ]
 };
 
-// Initialize schedule file if it doesn't exist
+// Ensures the schedule file and directory exist
 async function initSchedule() {
   try {
     await fs.mkdir(path.dirname(SCHEDULE_FILE), { recursive: true });
@@ -103,51 +104,70 @@ async function initSchedule() {
   }
 }
 
-// Get today's schedule
-async function getTodaySchedule() {
+// Reads and parses the schedule file
+async function readSchedule() {
   await initSchedule();
-  
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const today = days[new Date().getDay()];
-  
-  const schedule = JSON.parse(await fs.readFile(SCHEDULE_FILE, "utf-8"));
-  const todaySchedule = schedule[today];
-  
-  if (!todaySchedule || todaySchedule.length === 0) {
-    return { success: false, speech: `No schedule found for ${today}, sir.` };
-  }
-  
+  return JSON.parse(await fs.readFile(SCHEDULE_FILE, "utf-8"));
+}
+
+// Converts time string "HH:MM" to total minutes for comparison
+function timeToMinutes(timeStr) {
+  const [h, m] = timeStr.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Gets today's day name
+function getTodayName() {
+  return DAYS[new Date().getDay()];
+}
+
+// Gets current time in minutes
+function getCurrentMinutes() {
   const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
-  const currentTime = currentHour * 60 + currentMinute;
+  return now.getHours() * 60 + now.getMinutes();
+}
+
+// Finds current and next activities from today's schedule
+function findCurrentAndNext(schedule) {
+  const currentMinutes = getCurrentMinutes();
+  const scheduleWithMinutes = schedule.map(item => ({
+    ...item,
+    totalMinutes: timeToMinutes(item.time)
+  }));
   
-  // Find current and upcoming activities
   let currentActivity = null;
   let nextActivity = null;
-  
-  const scheduleWithMinutes = todaySchedule.map(item => {
-    const [h, m] = item.time.split(":").map(Number);
-    return { ...item, totalMinutes: h * 60 + m };
-  });
   
   for (let i = 0; i < scheduleWithMinutes.length; i++) {
     const item = scheduleWithMinutes[i];
     const nextItem = scheduleWithMinutes[i + 1];
     
-    if (currentTime >= item.totalMinutes && (!nextItem || currentTime < nextItem.totalMinutes)) {
+    if (currentMinutes >= item.totalMinutes && (!nextItem || currentMinutes < nextItem.totalMinutes)) {
       currentActivity = item;
       nextActivity = nextItem || null;
       break;
     }
   }
   
-  // If no current activity found, might be before first or after last
-  if (!currentActivity && scheduleWithMinutes.length > 0) {
-    if (currentTime < scheduleWithMinutes[0].totalMinutes) {
-      nextActivity = scheduleWithMinutes[0];
-    }
+  // Handle before first activity
+  if (!currentActivity && scheduleWithMinutes.length > 0 && currentMinutes < scheduleWithMinutes[0].totalMinutes) {
+    nextActivity = scheduleWithMinutes[0];
   }
+  
+  return { currentActivity, nextActivity };
+}
+
+// Get today's full schedule with current/next activity
+async function getTodaySchedule() {
+  const schedule = await readSchedule();
+  const today = getTodayName();
+  const todaySchedule = schedule[today];
+  
+  if (!todaySchedule || todaySchedule.length === 0) {
+    return { success: false, speech: `No schedule found for ${today}, sir.` };
+  }
+  
+  const { currentActivity, nextActivity } = findCurrentAndNext(todaySchedule);
   
   let speech = `Today is ${today}. `;
   
@@ -161,7 +181,6 @@ async function getTodaySchedule() {
     speech += "No more activities scheduled for today.";
   }
   
-  // List full schedule briefly
   speech += ` Full schedule: `;
   speech += todaySchedule.map(s => `${s.time} ${s.activity}`).join(". ");
   
@@ -170,16 +189,13 @@ async function getTodaySchedule() {
 
 // Get schedule for a specific day
 async function getDaySchedule(dayName) {
-  await initSchedule();
-  
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const day = days.find(d => d.toLowerCase() === dayName.toLowerCase());
+  const schedule = await readSchedule();
+  const day = DAYS.find(d => d.toLowerCase() === dayName.toLowerCase());
   
   if (!day) {
     return { success: false, speech: `I don't recognize that day, sir. Try Monday, Tuesday, etc.` };
   }
   
-  const schedule = JSON.parse(await fs.readFile(SCHEDULE_FILE, "utf-8"));
   const daySchedule = schedule[day];
   
   if (!daySchedule || daySchedule.length === 0) {
@@ -191,27 +207,18 @@ async function getDaySchedule(dayName) {
   return { success: true, speech };
 }
 
-// Get next activity only
+// Get only the next upcoming activity
 async function getNextActivity() {
-  await initSchedule();
-  
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const today = days[new Date().getDay()];
-  
-  const schedule = JSON.parse(await fs.readFile(SCHEDULE_FILE, "utf-8"));
+  const schedule = await readSchedule();
+  const today = getTodayName();
   const todaySchedule = schedule[today];
   
   if (!todaySchedule) {
     return { success: false, speech: "No schedule for today." };
   }
   
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  
-  const nextItem = todaySchedule.find(item => {
-    const [h, m] = item.time.split(":").map(Number);
-    return (h * 60 + m) > currentMinutes;
-  });
+  const currentMinutes = getCurrentMinutes();
+  const nextItem = todaySchedule.find(item => timeToMinutes(item.time) > currentMinutes);
   
   if (nextItem) {
     return { success: true, speech: `Next: ${nextItem.time} — ${nextItem.activity}` };

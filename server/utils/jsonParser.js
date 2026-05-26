@@ -1,3 +1,5 @@
+// server/utils/jsonParser.js
+// Safely extracts and parses JSON from text that may contain extra content
 function extractJSON(text) {
   const firstBrace = text.indexOf("{");
   const lastBrace = text.lastIndexOf("}");
@@ -11,10 +13,10 @@ function safeParseJSON(text) {
   try {
     return JSON.parse(text);
   } catch {
+    const extracted = extractJSON(text);
+    if (!extracted) return null;
+    
     try {
-      const extracted = extractJSON(text);
-      if (!extracted) return null;
-
       return JSON.parse(extracted);
     } catch {
       return null;

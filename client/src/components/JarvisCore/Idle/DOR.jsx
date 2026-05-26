@@ -1,7 +1,9 @@
-// DOR.jsx (Idle)
+// DOR.jsx (Sleep state - blue themed animated decorative rings)
 export default function DOR({ size = 520 }) {
   const cx = size / 2;
   const cy = size / 2;
+  
+  // Concentric ring layers with their visual properties
   const layers = [
     { radius: 130, strokeWidth: 0.8, dashArray: "60 25", color: "rgba(56,189,248,0.25)", duration: "3s", delay: "0s" },
     { radius: 125, strokeWidth: 0.6, dashArray: "80 20", color: "rgba(14,165,233,0.2)", duration: "4s", delay: "0.7s" },

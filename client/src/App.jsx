@@ -1,3 +1,5 @@
+// App.jsx
+// Main J.A.R.V.I.S. application with idle/awake states, system monitoring, and voice interaction
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { socket } from "./services/socket";
@@ -9,6 +11,7 @@ import { useMemoryCleanup } from "./hooks/useMemoryCleanup";
 import MusicWidget from "./widgets/MusicWidget";
 import ClapDetector from "./components/ClapDetector";
 
+// System monitor overlay showing CPU, RAM, GPU, and network statistics
 function SystemMonitor({ state, stats }) {
   const isIdle = state === "idle";
   const textColor = isIdle ? "text-blue-400/80" : "text-orange-400/80";
@@ -34,7 +37,7 @@ function SystemMonitor({ state, stats }) {
       exit={{ opacity: 0, x: 20 }}
       className={`absolute top-4 right-4 z-20 font-mono text-[12px] leading-relaxed ${textColor} ${bgColor} border ${borderColor} rounded-lg px-4 py-3 min-w-[320px] backdrop-blur-sm`}
     >
-      {/* CPU */}
+      {/* CPU usage bar */}
       <div className="flex justify-between">
         <span>CPU</span>
         <span>{stats.cpu.percent}% {stats.cpu.temp && `| ${stats.cpu.temp}°C`}</span>
@@ -44,7 +47,7 @@ function SystemMonitor({ state, stats }) {
           animate={{ width: `${Math.min(stats.cpu.percent, 100)}%` }} transition={{ duration: 0.5 }} />
       </div>
 
-      {/* RAM */}
+      {/* RAM usage bar */}
       <div className="flex justify-between mt-1">
         <span>RAM {stats.ram.speed && `(${stats.ram.speed})`}</span>
         <span>{stats.ram.used} / {stats.ram.total} GB</span>
@@ -54,6 +57,7 @@ function SystemMonitor({ state, stats }) {
           animate={{ width: `${Math.min(stats.ram.percent, 100)}%` }} transition={{ duration: 0.5 }} />
       </div>
 
+      {/* Idle-specific system info */}
       {isIdle && (
         <>
           <div className="flex justify-between mt-1"><span>Uptime</span><span>{formatUptime(stats.uptime)}</span></div>
@@ -71,6 +75,7 @@ function SystemMonitor({ state, stats }) {
         </>
       )}
 
+      {/* Awake-specific system info */}
       {!isIdle && (
         <>
           {stats.gpu.percent !== null && (
@@ -106,12 +111,12 @@ function SystemMonitor({ state, stats }) {
   );
 }
 
+// Animated background with different visual effects for idle and awake states
 function AnimatedBackground({ state, showCamera }) {
   if (showCamera) return null;
 
   const isIdle = state === "idle";
   const hour = new Date().getHours();
-  const hueShift = hour < 6 ? -8 : hour < 12 ? 0 : hour < 18 ? 8 : -4;
 
   const idleMessages = useMemo(() => [
     "Systems in standby...", "Awaiting wake word...", "Core temperature: optimal",
@@ -133,6 +138,7 @@ function AnimatedBackground({ state, showCamera }) {
     "> optimize GPU", "> verify user identity",
   ], []);
 
+  // Generate random idle state messages
   const idleItems = useMemo(() => {
     return Array.from({ length: 12 }).map((_, i) => ({
       message: idleMessages[i % idleMessages.length],
@@ -143,6 +149,7 @@ function AnimatedBackground({ state, showCamera }) {
     }));
   }, [idleMessages]);
 
+  // Generate console-style awake messages
   const awakeItems = useMemo(() => {
     return Array.from({ length: 3 }).map((_, i) => ({
       message: awakeMessages[Math.floor(Math.random() * awakeMessages.length)],
@@ -153,6 +160,7 @@ function AnimatedBackground({ state, showCamera }) {
     }));
   }, [awakeMessages]);
 
+  // Generate twinkling stars for idle state
   const stars = useMemo(() => {
     return Array.from({ length: 60 }).map(() => ({
       size: 0.5 + Math.random() * 2,
@@ -162,43 +170,44 @@ function AnimatedBackground({ state, showCamera }) {
     }));
   }, []);
 
+  // Generate neural network nodes for awake state
   const neuralNodes = useMemo(() => {
-      // Create a connected network of nodes in corners, away from center
-      const nodes = [];
-      
-      // Top left cluster - 3 nodes forming a triangle
-      nodes.push({ x1: 8, y1: 10, x2: 18, y2: 8, delay: 0, duration: 2.5 });
-      nodes.push({ x1: 18, y1: 8, x2: 22, y2: 18, delay: 0.8, duration: 2.5 });
-      nodes.push({ x1: 22, y1: 18, x2: 8, y2: 10, delay: 1.6, duration: 2.5 });
-      
-      // Top right cluster - 3 nodes forming a triangle
-      nodes.push({ x1: 78, y1: 8, x2: 88, y2: 6, delay: 0.3, duration: 3 });
-      nodes.push({ x1: 88, y1: 6, x2: 92, y2: 16, delay: 1.1, duration: 3 });
-      nodes.push({ x1: 92, y1: 16, x2: 78, y2: 8, delay: 1.9, duration: 3 });
-      
-      // Bottom left cluster - 3 nodes
-      nodes.push({ x1: 6, y1: 78, x2: 16, y2: 82, delay: 0.5, duration: 2.8 });
-      nodes.push({ x1: 16, y1: 82, x2: 10, y2: 92, delay: 1.3, duration: 2.8 });
-      nodes.push({ x1: 10, y1: 92, x2: 6, y2: 78, delay: 2.1, duration: 2.8 });
-      
-      // Bottom right cluster - 3 nodes
-      nodes.push({ x1: 82, y1: 80, x2: 92, y2: 78, delay: 0.7, duration: 3.2 });
-      nodes.push({ x1: 92, y1: 78, x2: 90, y2: 90, delay: 1.5, duration: 3.2 });
-      nodes.push({ x1: 90, y1: 90, x2: 82, y2: 80, delay: 2.3, duration: 3.2 });
-      
-      // Cross connections between clusters (top-left to top-right, etc.)
-      nodes.push({ x1: 22, y1: 14, x2: 78, y2: 8, delay: 0.2, duration: 4 });
-      nodes.push({ x1: 8, y1: 14, x2: 6, y2: 78, delay: 0.9, duration: 4 });
-      nodes.push({ x1: 92, y1: 12, x2: 88, y2: 80, delay: 1.7, duration: 4 });
-      nodes.push({ x1: 14, y1: 88, x2: 82, y2: 82, delay: 2.5, duration: 4 });
-      
-      return nodes;
-    }, []);
+    const nodes = [];
+    
+    // Top left cluster
+    nodes.push({ x1: 8, y1: 10, x2: 18, y2: 8, delay: 0, duration: 2.5 });
+    nodes.push({ x1: 18, y1: 8, x2: 22, y2: 18, delay: 0.8, duration: 2.5 });
+    nodes.push({ x1: 22, y1: 18, x2: 8, y2: 10, delay: 1.6, duration: 2.5 });
+    
+    // Top right cluster
+    nodes.push({ x1: 78, y1: 8, x2: 88, y2: 6, delay: 0.3, duration: 3 });
+    nodes.push({ x1: 88, y1: 6, x2: 92, y2: 16, delay: 1.1, duration: 3 });
+    nodes.push({ x1: 92, y1: 16, x2: 78, y2: 8, delay: 1.9, duration: 3 });
+    
+    // Bottom left cluster
+    nodes.push({ x1: 6, y1: 78, x2: 16, y2: 82, delay: 0.5, duration: 2.8 });
+    nodes.push({ x1: 16, y1: 82, x2: 10, y2: 92, delay: 1.3, duration: 2.8 });
+    nodes.push({ x1: 10, y1: 92, x2: 6, y2: 78, delay: 2.1, duration: 2.8 });
+    
+    // Bottom right cluster
+    nodes.push({ x1: 82, y1: 80, x2: 92, y2: 78, delay: 0.7, duration: 3.2 });
+    nodes.push({ x1: 92, y1: 78, x2: 90, y2: 90, delay: 1.5, duration: 3.2 });
+    nodes.push({ x1: 90, y1: 90, x2: 82, y2: 80, delay: 2.3, duration: 3.2 });
+    
+    // Cross connections between clusters
+    nodes.push({ x1: 22, y1: 14, x2: 78, y2: 8, delay: 0.2, duration: 4 });
+    nodes.push({ x1: 8, y1: 14, x2: 6, y2: 78, delay: 0.9, duration: 4 });
+    nodes.push({ x1: 92, y1: 12, x2: 88, y2: 80, delay: 1.7, duration: 4 });
+    nodes.push({ x1: 14, y1: 88, x2: 82, y2: 82, delay: 2.5, duration: 4 });
+    
+    return nodes;
+  }, []);
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {isIdle ? (
         <>
+          {/* Twinkling stars */}
           {stars.map((s, i) => (
             <motion.div key={`star-${i}`} className="absolute rounded-full bg-white"
               style={{ width: s.size, height: s.size, left: `${s.left}%`, top: `${s.top}%` }}
@@ -206,6 +215,7 @@ function AnimatedBackground({ state, showCamera }) {
               transition={{ duration: s.duration, repeat: Infinity, delay: s.delay, ease: "easeInOut" }}
             />
           ))}
+          {/* Floating idle messages */}
           {idleItems.map((item, i) => (
             <motion.div key={`idle-msg-${i}`} className="absolute whitespace-nowrap font-mono text-blue-400/60"
               style={{ left: `${item.left}%`, top: `${item.top}%`, fontSize: `${item.fontSize}px`, opacity: item.opacity }}
@@ -218,7 +228,7 @@ function AnimatedBackground({ state, showCamera }) {
         </>
       ) : (
         <>
-          {/* Circuit board with core cutout - combined in one SVG with mask */}
+          {/* Circuit board with core cutout */}
           <svg className="absolute inset-0 opacity-[0.065]" width="100%" height="100%">
             <defs>
               <mask id="coreCutout">
@@ -298,7 +308,7 @@ function AnimatedBackground({ state, showCamera }) {
             <rect width="100%" height="100%" fill="url(#components)" mask="url(#coreCutout)" />
           </svg>
 
-          {/* Commands */}
+          {/* Console-style commands */}
           {awakeItems.map((item, i) => (
             <motion.div key={`cmd-${i}`} className="absolute whitespace-nowrap font-mono text-orange-400/70"
               style={{ left: `${item.left}%`, top: `${item.top}%`, fontSize: `${item.fontSize}px`, maxWidth: "40%", overflow: "hidden", textOverflow: "ellipsis" }}
@@ -310,7 +320,7 @@ function AnimatedBackground({ state, showCamera }) {
             </motion.div>
           ))}
 
-          {/* Corner brackets */}
+          {/* Decorative corner brackets */}
           <motion.div className="absolute border-l-[3px] border-t-[3px] border-orange-400/40" style={{ left: "2%", top: "2%", width: "50px", height: "50px" }}
             animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
@@ -318,11 +328,10 @@ function AnimatedBackground({ state, showCamera }) {
             animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }}
           />
 
-          {/* 2. Neural network - connected pulsing nodes via SVG */}
+          {/* Neural network nodes */}
           <svg className="absolute inset-0" width="100%" height="100%">
             {neuralNodes.map((node, i) => (
               <React.Fragment key={`neural-svg-${i}`}>
-                {/* Connecting line */}
                 <motion.line
                   x1={`${node.x1}%`} y1={`${node.y1}%`}
                   x2={`${node.x2}%`} y2={`${node.y2}%`}
@@ -331,14 +340,12 @@ function AnimatedBackground({ state, showCamera }) {
                   animate={{ opacity: [0.2, 0.6, 0.2] }}
                   transition={{ duration: node.duration + 1, repeat: Infinity, delay: node.delay }}
                 />
-                {/* Node 1 */}
                 <motion.circle
                   cx={`${node.x1}%`} cy={`${node.y1}%`} r="3"
                   fill="rgba(251,146,60,0.7)"
                   animate={{ r: [3, 5, 3], opacity: [0.5, 1, 0.5] }}
                   transition={{ duration: node.duration, repeat: Infinity, delay: node.delay }}
                 />
-                {/* Node 2 */}
                 <motion.circle
                   cx={`${node.x2}%`} cy={`${node.y2}%`} r="3"
                   fill="rgba(251,146,60,0.7)"
@@ -349,7 +356,7 @@ function AnimatedBackground({ state, showCamera }) {
             ))}
           </svg>
 
-          {/* 3. Time-synced color indicator */}
+          {/* Time-synced mode indicator */}
           <motion.div className="absolute top-2 left-1/2 -translate-x-1/2 text-[8px] font-mono text-orange-400/30"
             animate={{ opacity: [0.2, 0.5, 0.2] }}
             transition={{ duration: 4, repeat: Infinity }}
@@ -357,7 +364,7 @@ function AnimatedBackground({ state, showCamera }) {
             {hour < 6 ? "NIGHT MODE" : hour < 12 ? "MORNING CYCLE" : hour < 18 ? "DAY OPERATIONS" : "EVENING PROTOCOL"}
           </motion.div>
 
-          {/* 5. Status indicators - bottom left */}
+          {/* Status indicators */}
           <motion.div className="absolute bottom-3 left-3 flex gap-3 text-[9px] font-mono"
             animate={{ opacity: [0.5, 0.8, 0.5] }}
             transition={{ duration: 3, repeat: Infinity }}
@@ -381,6 +388,7 @@ function AnimatedBackground({ state, showCamera }) {
   );
 }
 
+// Main application component
 export default function App() {
   const [response, setResponse] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -422,8 +430,13 @@ export default function App() {
     setShowCamera(false);
   }, [cameraStream]);
 
-  useEffect(() => { const i = setInterval(() => setIsJarvisSpeaking(checkIsSpeaking()), 100); return () => clearInterval(i); }, []);
+  // Monitor JARVIS speaking state
+  useEffect(() => { 
+    const i = setInterval(() => setIsJarvisSpeaking(checkIsSpeaking()), 100); 
+    return () => clearInterval(i); 
+  }, []);
 
+  // Auto-hide response after delay
   useEffect(() => {
     let t;
     if (!isJarvisSpeaking && !isProcessing && showResponse) {
@@ -433,8 +446,10 @@ export default function App() {
     return () => clearTimeout(t);
   }, [isJarvisSpeaking, isProcessing, showResponse, response]);
 
+  // Make socket globally available
   useEffect(() => { window.socket = socket; return () => delete window.socket; }, []);
 
+  // Volume detection from microphone
   useEffect(() => {
     let audioContext, analyser, dataArray, interval;
     const getVolume = async () => {
@@ -460,6 +475,7 @@ export default function App() {
     };
   }, []);
 
+  // Socket event handlers
   useEffect(() => {
     socket.on("response", async (d) => {
       if (!d?.text) return;
@@ -480,7 +496,6 @@ export default function App() {
       stopCamera(); 
     });
     
-    // ADD THIS WAKE HANDLER:
     socket.on("wake", () => {
       console.log("Wake event received - activating Jarvis");
       setState("awake");
@@ -495,7 +510,7 @@ export default function App() {
     return () => {
       socket.off("response"); 
       socket.off("sleep"); 
-      socket.off("wake");  // Add this
+      socket.off("wake");
       socket.off("volume"); 
       socket.off("systemStats");
       socket.off("showCamera"); 
@@ -507,15 +522,15 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen w-full bg-[#020202] text-white overflow-hidden select-none">
-
       <ClapDetector />
-
       <AnimatedBackground state={state} showCamera={showCamera} />
 
+      {/* System monitor (hidden when camera is active) */}
       <AnimatePresence>
         {!showCamera && <SystemMonitor state={state} stats={systemStats} />}
       </AnimatePresence>
 
+      {/* Idle state title */}
       <AnimatePresence>
         {isIdle && !showCamera && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
@@ -528,6 +543,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Main JARVIS core display */}
       {!showCamera && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
           {isIdle ? (
@@ -542,6 +558,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Camera view with mini JARVIS overlay */}
       {showCamera && (
         <>
           <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 0.68 }} transition={{ duration: 0.5 }} className="absolute bottom-8 right-8 z-40" style={{ transformOrigin: 'bottom right' }}>
@@ -559,6 +576,7 @@ export default function App() {
         </>
       )}
 
+      {/* Response display and processing indicator */}
       <div className="absolute top-[calc(50%+320px)] left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
         <AnimatePresence>
           {showResponse && !isProcessing && !showCamera && (
@@ -579,6 +597,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
+      {/* Listening status indicator */}
       {!showResponse && !isProcessing && !showCamera && (
         <motion.div animate={{ opacity: [0.5, 0.9, 0.5] }} transition={{ duration: 2, repeat: Infinity }}
           className="absolute bottom-16 left-1/2 -translate-x-1/2 text-xs tracking-[0.4em] whitespace-nowrap">

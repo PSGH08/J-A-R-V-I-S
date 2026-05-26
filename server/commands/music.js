@@ -1,3 +1,5 @@
+// server/commands/music.js
+// Music playback using mpv player with playlist management, pause/resume, and real-time state
 const { exec } = require("child_process");
 const path = require("path");
 const fs = require("fs");

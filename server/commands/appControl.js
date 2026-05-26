@@ -1,9 +1,34 @@
+// server/commands/appControl.js
+// Searches and launches applications on Windows with caching for performance
 const { exec } = require("child_process");
 const { promisify } = require("util");
 const execPromise = promisify(exec);
 const logger = require("../utils/logger");
 
 const appCache = new Map();
+
+// Common Windows search locations for installed applications
+const SEARCH_LOCATIONS = [
+  `C:\\Program Files`,
+  `C:\\Program Files (x86)`,
+  `%LOCALAPPDATA%\\Programs`,
+  `%APPDATA%`
+];
+
+// Resolves environment variables in paths
+function resolvePath(path) {
+  return path
+    .replace('%LOCALAPPDATA%', process.env.LOCALAPPDATA)
+    .replace('%APPDATA%', process.env.APPDATA);
+}
+
+// Filters out common non-application executables
+function isValidAppPath(path) {
+  return !path.includes('uninstall') && 
+         !path.includes('Uninstall') &&
+         !path.includes('Update') &&
+         !path.includes('Installer');
+}
 
 async function openApp({ app }) {
   const startTime = Date.now();
@@ -29,20 +54,12 @@ async function openApp({ app }) {
   try {
     let foundPath = null;
     
-    // Method 1: Search using where command with proper escaping
+    // Method 1: Exact executable name search
     logger.log(`Method 1: Searching Program Files...`);
-    
-    const searchLocations = [
-      `C:\\Program Files`,
-      `C:\\Program Files (x86)`,
-      `%LOCALAPPDATA%\\Programs`,
-      `%APPDATA%`
-    ];
-    
-    for (const location of searchLocations) {
+    for (const location of SEARCH_LOCATIONS) {
       try {
         const { stdout } = await execPromise(
-          `where /R "${location.replace('%LOCALAPPDATA%', process.env.LOCALAPPDATA).replace('%APPDATA%', process.env.APPDATA)}" ${searchTerm}.exe 2>nul`
+          `where /R "${resolvePath(location)}" ${searchTerm}.exe 2>nul`
         );
         if (stdout && stdout.trim()) {
           foundPath = stdout.trim().split('\n')[0];
@@ -54,23 +71,17 @@ async function openApp({ app }) {
       }
     }
     
-    // Method 2: Search with wildcard (for app names that don't exactly match the exe)
+    // Method 2: Wildcard search for partial matches
     if (!foundPath) {
       logger.log(`Method 2: Searching with wildcard...`);
-      for (const location of searchLocations) {
+      for (const location of SEARCH_LOCATIONS) {
         try {
           const { stdout } = await execPromise(
-            `where /R "${location.replace('%LOCALAPPDATA%', process.env.LOCALAPPDATA).replace('%APPDATA%', process.env.APPDATA)}" *${searchTerm}*.exe 2>nul`
+            `where /R "${resolvePath(location)}" *${searchTerm}*.exe 2>nul`
           );
           if (stdout && stdout.trim()) {
             const paths = stdout.trim().split('\n');
-            // Filter out uninstallers and common non-app exes
-            foundPath = paths.find(p => 
-              !p.includes('uninstall') && 
-              !p.includes('Uninstall') &&
-              !p.includes('Update') &&
-              !p.includes('Installer')
-            ) || paths[0];
+            foundPath = paths.find(isValidAppPath) || paths[0];
             logger.log(`Found at: ${foundPath}`);
             break;
           }
@@ -90,7 +101,6 @@ async function openApp({ app }) {
         if (stdout && stdout.trim()) {
           const shortcutPath = stdout.trim();
           logger.log(`Found shortcut at: ${shortcutPath}`);
-          // Launch the shortcut directly
           await execPromise(`start "" "${shortcutPath}"`);
           appCache.set(searchTerm, shortcutPath);
           const duration = Date.now() - startTime;
@@ -102,7 +112,7 @@ async function openApp({ app }) {
       }
     }
     
-    // Launch if found
+    // Launch if found via Method 1 or 2
     if (foundPath) {
       appCache.set(searchTerm, foundPath);
       await execPromise(`start "" "${foundPath}"`);
@@ -111,7 +121,7 @@ async function openApp({ app }) {
       return { speech: `Opening ${originalApp}` };
     }
     
-    // Not found
+    // App not found
     logger.error(`Could not find: ${app}`);
     return { 
       speech: `I searched everywhere but couldn't find ${originalApp} on your system. Is it installed? Try typing the exact name like "TeamSpeak 3" or check if it's in your Program Files folder.` 
@@ -125,7 +135,7 @@ async function openApp({ app }) {
   }
 }
 
-// Helper function to search by exact process name (for debugging)
+// Helper function to check if a process is running by name
 async function findProcessByName(processName) {
   try {
     const { stdout } = await execPromise(`tasklist /FI "IMAGENAME eq ${processName}.exe" /NH`);

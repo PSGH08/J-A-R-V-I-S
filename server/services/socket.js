@@ -1,7 +1,8 @@
-// client/src/services/socket.js
+// server/services/socket.js
+// Socket.IO client connection for J.A.R.V.I.S. backend communication
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "http://localhost:3001"; // Make sure this matches your server URL
+const SOCKET_URL = "http://localhost:3001";
 
 export const socket = io(SOCKET_URL, {
   autoConnect: true,

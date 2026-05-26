@@ -1,3 +1,4 @@
+// IdleJarvis.jsx (Sleep state - assembles all blue themed visual components)
 import OuterRim from "./OuterRim";
 import DOR from "./DOR";
 import Clock from "./Clock";

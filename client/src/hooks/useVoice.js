@@ -1,3 +1,5 @@
+// useVoice.js
+// Voice recognition hook with JARVIS speaking awareness and speech buffering
 import { useState, useEffect, useRef } from 'react';
 import { isJarvisSpeaking } from '../services/speech';
 
@@ -7,6 +9,36 @@ export function useVoice() {
   const recognitionRef = useRef(null);
   const shouldBeListeningRef = useRef(false);
   const restartTimeoutRef = useRef(null);
+  const speechBufferRef = useRef("");
+  const processingTimeoutRef = useRef(null);
+  
+  const SILENCE_DELAY = 1500;
+  const RESTART_DELAY = 500;
+  const SPEAKING_CHECK_INTERVAL = 100;
+
+  // Processes buffered speech and emits command via socket
+  const processCommand = (command) => {
+    if (!command || isJarvisSpeaking()) return;
+    
+    console.log(`🎤 Sending command: "${command}"`);
+    setText(command);
+    if (window.socket) {
+      window.socket.emit("command", command);
+      setText("");
+    }
+    speechBufferRef.current = "";
+  };
+
+  // Attempts to restart speech recognition with error handling
+  const attemptRestart = (recognition) => {
+    if (!shouldBeListeningRef.current || isJarvisSpeaking()) return;
+    
+    try {
+      recognition.start();
+    } catch (err) {
+      console.error("Failed to restart recognition:", err);
+    }
+  };
 
   useEffect(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -22,107 +54,91 @@ export function useVoice() {
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
-      console.log("Voice recognition started");
+      console.log("🎤 Voice recognition started");
       setListening(true);
     };
 
+    // Collects final speech results and buffers them before sending
     recognition.onresult = (event) => {
-      // Ignore results when JARVIS is speaking
-      if (isJarvisSpeaking()) {
-        console.log("Ignoring voice input - JARVIS is speaking");
-        return;
-      }
+      if (isJarvisSpeaking()) return;
       
-      let interim = "";
-      let final = "";
-      
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
+      let newText = "";
+      for (let i = 0; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
-          final += transcript;
-        } else {
-          interim += transcript;
+          newText += event.results[i][0].transcript + " ";
+          console.log(`✅ Final: "${event.results[i][0].transcript}"`);
         }
       }
       
-      const finalText = final || interim;
-      if (finalText && !isJarvisSpeaking()) {
-        console.log(`Heard: "${finalText}"`);
-        setText(finalText);
+      if (newText) {
+        speechBufferRef.current += newText;
         
-        // Send EVERYTHING to socket - backend will handle wake word
-        if (final && window.socket) {
-          console.log(`Sending to backend: "${finalText}"`);
-          window.socket.emit("command", finalText);
-          setText(""); // Clear after sending
+        if (processingTimeoutRef.current) {
+          clearTimeout(processingTimeoutRef.current);
         }
+        
+        // Wait for silence before processing the command
+        processingTimeoutRef.current = setTimeout(() => {
+          if (speechBufferRef.current.trim() && !isJarvisSpeaking()) {
+            processCommand(speechBufferRef.current.trim());
+          }
+        }, SILENCE_DELAY);
       }
     };
 
     recognition.onerror = (event) => {
       console.error("Recognition error:", event.error);
-      if (event.error === 'no-speech' && isJarvisSpeaking()) {
-        return;
-      }
+      if (event.error === 'no-speech') return;
+      
       if (event.error !== 'aborted') {
         setListening(false);
-        // Try to restart if we should still be listening
         if (shouldBeListeningRef.current && !isJarvisSpeaking()) {
           setTimeout(() => {
             if (shouldBeListeningRef.current && !isJarvisSpeaking()) {
-              try {
-                recognition.start();
-              } catch (err) {
-                console.error("Failed to restart after error:", err);
-              }
+              attemptRestart(recognition);
             }
           }, 1000);
         }
       }
     };
 
+    // Handles recognition end - processes remaining buffer and restarts if needed
     recognition.onend = () => {
       console.log("Voice recognition ended");
       
-      // Clear any pending restart
+      // Process any remaining buffered speech
+      if (speechBufferRef.current.trim() && !isJarvisSpeaking()) {
+        processCommand(speechBufferRef.current.trim());
+      }
+      
       if (restartTimeoutRef.current) {
         clearTimeout(restartTimeoutRef.current);
       }
       
-      // Always restart if we should be listening
       if (shouldBeListeningRef.current) {
-        // If JARVIS is speaking, wait for it to finish
         if (isJarvisSpeaking()) {
-          console.log("Waiting for JARVIS to finish speaking before restarting...");
+          console.log("Waiting for JARVIS to finish...");
           const checkInterval = setInterval(() => {
             if (!isJarvisSpeaking() && shouldBeListeningRef.current) {
               clearInterval(checkInterval);
               restartTimeoutRef.current = setTimeout(() => {
-                try {
-                  recognition.start();
-                } catch (err) {
-                  console.error("Failed to restart:", err);
-                }
-              }, 500);
+                attemptRestart(recognition);
+              }, RESTART_DELAY);
             }
           }, 200);
         } else {
-          // Restart immediately
           restartTimeoutRef.current = setTimeout(() => {
-            try {
-              if (shouldBeListeningRef.current) {
-                recognition.start();
-              }
-            } catch (err) {
-              console.error("Failed to restart:", err);
+            if (shouldBeListeningRef.current) {
+              attemptRestart(recognition);
             }
-          }, 500);
+          }, RESTART_DELAY);
         }
       }
     };
 
     recognitionRef.current = recognition;
 
+    // Auto-start recognition after initial delay
     setTimeout(() => {
       if (recognitionRef.current && !isJarvisSpeaking()) {
         recognitionRef.current.start();
@@ -132,20 +148,17 @@ export function useVoice() {
     }, 1000);
 
     return () => {
-      if (restartTimeoutRef.current) {
-        clearTimeout(restartTimeoutRef.current);
-      }
+      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
+      if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
-        } catch (err) {
-          // Ignore
-        }
+        } catch (err) {}
       }
     };
   }, []);
 
-  // Monitor JARVIS speaking state
+  // Monitor JARVIS speaking state and pause recognition when speaking
   useEffect(() => {
     if (!recognitionRef.current) return;
     
@@ -153,30 +166,24 @@ export function useVoice() {
       const isSpeaking = isJarvisSpeaking();
       const recognition = recognitionRef.current;
       
-      if (isSpeaking && shouldBeListeningRef.current) {
-        // JARVIS is speaking - stop recognition temporarily
+      if (isSpeaking && shouldBeListeningRef.current && recognition && listening) {
         try {
-          if (recognition && listening) {
-            recognition.stop();
-            console.log("Paused microphone - JARVIS is speaking");
-          }
-        } catch (err) {
-          // Ignore errors
-        }
+          recognition.stop();
+          console.log("Paused - JARVIS is speaking");
+        } catch (err) {}
       }
-    }, 100);
+    }, SPEAKING_CHECK_INTERVAL);
     
     return () => clearInterval(checkSpeakingState);
   }, [listening]);
 
   const startListening = () => {
     if (!recognitionRef.current) return;
-    
     shouldBeListeningRef.current = true;
+    speechBufferRef.current = "";
     
-    // If JARVIS is speaking, wait for it to finish
     if (isJarvisSpeaking()) {
-      console.log("Waiting for JARVIS to finish speaking before starting...");
+      console.log("Waiting for JARVIS to finish...");
       const waitInterval = setInterval(() => {
         if (!isJarvisSpeaking()) {
           clearInterval(waitInterval);
@@ -190,10 +197,9 @@ export function useVoice() {
       recognitionRef.current.start();
       setListening(true);
       setText("");
-      console.log("Started listening for commands");
+      console.log("Started listening");
     } catch (err) {
-      console.error("Failed to start recognition:", err);
-      // If already started, that's fine
+      console.error("Failed to start:", err);
       if (err.error !== 'invalid-state') {
         setListening(false);
         shouldBeListeningRef.current = false;
@@ -206,12 +212,11 @@ export function useVoice() {
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (err) {
-        console.error("Failed to stop recognition:", err);
-      }
+      } catch (err) {}
     }
     setListening(false);
     setText("");
+    speechBufferRef.current = "";
     console.log("Stopped listening");
   };
 

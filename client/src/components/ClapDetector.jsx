@@ -1,4 +1,5 @@
 // client/src/components/ClapDetector.jsx
+// Listens for double clap pattern to wake up Jarvis via socket event
 import { useEffect, useRef, useCallback } from "react";
 import { socket } from "../services/socket";
 
@@ -20,6 +21,7 @@ export default function ClapDetector() {
     lastClapTime: 0
   });
 
+  // Analyzes frequency data to detect claps and triggers wake-up on double clap
   const detectClap = useCallback((dataArray, sampleRate) => {
     const now = Date.now();
     const state = clapState.current;
@@ -30,6 +32,7 @@ export default function ClapDetector() {
     
     if (now - state.lastSpikeTime < COOLDOWN_MS) return;
     
+    // Calculate energy in the clap frequency range
     const binSize = sampleRate / dataArray.length;
     const startBin = Math.floor(CLAP_MIN_FREQUENCY / binSize);
     const endBin = Math.floor(CLAP_MAX_FREQUENCY / binSize);
@@ -55,6 +58,7 @@ export default function ClapDetector() {
     }
   }, []);
 
+  // Initializes audio context and starts the detection loop
   const startListening = useCallback(async () => {
     try {
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
@@ -103,6 +107,7 @@ export default function ClapDetector() {
   useEffect(() => {
     startListening();
     
+    // Resume audio context on user interaction if suspended
     const resumeAudio = () => {
       if (audioContextRef.current?.state === 'suspended') {
         audioContextRef.current.resume();
@@ -113,6 +118,7 @@ export default function ClapDetector() {
     document.addEventListener('keydown', resumeAudio);
     document.addEventListener('touchstart', resumeAudio);
     
+    // Cleanup all audio resources and event listeners
     return () => {
       document.removeEventListener('click', resumeAudio);
       document.removeEventListener('keydown', resumeAudio);

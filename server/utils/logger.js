@@ -1,3 +1,5 @@
+// server/utils/logger.js
+// Standardized logging with timestamps and log levels
 const levels = {
   info: "INFO",
   warn: "WARN",

@@ -1,4 +1,5 @@
 // jarvisPersonality.js
+// J.A.R.V.I.S. personality system with witty, Tony Stark-inspired responses
 const wittyResponses = {
   greetings: {
     morning: "Good morning, sir. I trust you slept well. The world awaits your command.",
@@ -52,7 +53,7 @@ const wittyResponses = {
     "If you say so, sir. I'll assume you know what you're doing.",
     "I shall pretend that made sense. For the sake of our working relationship.",
     "As you wish, though I have documented my concerns. Just in case.",
-    "Not how I would have done it, but I'm just an AI. What do I know?",
+    "Not how I would have done it, but I'm just an AI. What do you know?",
     "Your confidence is inspiring. Your logic... less so."
   ],
   
@@ -65,6 +66,7 @@ const wittyResponses = {
   ]
 };
 
+// Returns a random response from the specified category
 export function getWittyResponse(type, context = {}) {
   const responses = wittyResponses[type];
   if (!responses) return null;
@@ -73,6 +75,7 @@ export function getWittyResponse(type, context = {}) {
     return responses[Math.floor(Math.random() * responses.length)];
   }
   
+  // Handle time-of-day specific greetings
   if (type === 'greetings' && context.timeOfDay) {
     return responses[context.timeOfDay] || responses.afternoon;
   }
